@@ -1,6 +1,6 @@
 # Azeroth Survivor
 
-一款使用 **Phaser 3 + TypeScript + Vite** 制作的浏览器自动战斗 Roguelike Demo。玩家扮演影踪武僧，只需使用 **WASD** 穿梭战场；火焰之息会自动追踪敌人。
+一款使用 **Phaser 3 + TypeScript + Vite** 制作的浏览器自动战斗 Roguelike Demo。玩家只需使用 **WASD** 穿梭战场，技能会自动寻找目标并施放。项目目标是以“职业定框架、技能自动触发、天赋定路线、装备改机制、套装定终局”构成一局 20 分钟的 Build 体验。
 
 ## 开始游戏
 
