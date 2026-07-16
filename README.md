@@ -25,14 +25,15 @@ npm run build
 - 野狼追击、接触伤害、经验球和等级成长
 - 升级暂停与三选一强化
 - 5 分钟熔岩巨兽 Boss、HUD、死亡与重开
-- Vercel 配置和 GitHub Actions 构建/部署
+- GitHub Pages 自动部署，以及可选的 Vercel 配置
 
 完整规则及模块说明见 [GAME_SPEC.md](./GAME_SPEC.md)。当前美术由运行时生成的占位纹理构成，后续可直接改为 `assets/` 下的正式资源。
 
-## 部署
+## GitHub Pages 部署
 
-1. 在 Vercel 创建项目并记下项目、组织 ID。
-2. 在 GitHub 仓库中配置 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` 三个 Actions Secrets。
-3. 推送至 `main`，工作流会依次执行安装、测试、构建，并部署生产版本。
+1. 推送至 `main`，工作流会自动启用 GitHub Pages，然后依次执行安装、测试、构建并发布 `dist`。
+2. 部署完成后访问 <https://umaydie-cyber.github.io/wowsurviver/>。
 
-也可直接在 Vercel 导入仓库；`vercel.json` 已提供 SPA 回退规则。仓库及线上地址需由仓库所有者创建/绑定后获得。
+如果仓库策略禁止工作流自动启用 Pages，请在仓库 **Settings → Pages → Build and deployment** 中手动将 Source 设为 **GitHub Actions**，再重新运行失败的工作流。
+
+Pages 构建会把 Vite 的资源基础路径设为 `/wowsurviver/`，避免项目站点子路径下的脚本和样式 404。也可直接在 Vercel 导入仓库；默认本地与 Vercel 构建仍使用根路径，`vercel.json` 已提供 SPA 回退规则。
