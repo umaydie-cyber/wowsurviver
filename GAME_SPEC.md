@@ -36,7 +36,7 @@
 
 ## 构建与部署
 
-GitHub Actions 使用 Node.js 24 运行测试与生产构建。配置 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` 三个仓库 Secret 后，工作流会通过 Vercel CLI 部署；任一 Secret 缺失时仅跳过部署并给出警告，测试与构建仍可正常完成。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
+GitHub Actions 使用 Node.js 24 运行测试与生产构建，并通过 GitHub Pages 官方 Artifact 流程发布 `dist`。Pages 构建注入 `/wowsurviver/` 资源基础路径，确保游戏在项目站点子目录中加载；本地及 Vercel 构建默认仍使用 `/`。首次发布前须在仓库 **Settings → Pages** 中将 Source 设为 **GitHub Actions**，不需要配置 Vercel Secrets。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
 
 ## 后续计划
 
