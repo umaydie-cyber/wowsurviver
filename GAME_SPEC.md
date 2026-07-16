@@ -36,7 +36,7 @@
 
 ## 构建与部署
 
-GitHub Actions 使用 Node.js 24 运行测试与生产构建，并通过 GitHub Pages 官方 Artifact 流程发布 `dist`。工作流会请求自动启用 Pages，避免尚未创建 Pages 站点时 `configure-pages` 因 API 404 中止；如果仓库策略禁止自动启用，仍需在 **Settings → Pages** 中手动将 Source 设为 **GitHub Actions** 后重新运行。Pages 构建注入 `/wowsurviver/` 资源基础路径，确保游戏在项目站点子目录中加载；本地及 Vercel 构建默认仍使用 `/`，也不需要配置 Vercel Secrets。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
+GitHub Actions 使用 Node.js 24 运行测试与生产构建，并通过 GitHub Pages 官方 Artifact 流程发布 `dist`。Pages 构建注入 `/wowsurviver/` 资源基础路径，确保游戏在项目站点子目录中加载；本地及 Vercel 构建默认仍使用 `/`。首次发布前须在仓库 **Settings → Pages** 中将 Source 设为 **GitHub Actions**，不需要配置 Vercel Secrets。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
 
 ## 后续计划
 

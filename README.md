@@ -31,9 +31,8 @@ npm run build
 
 ## GitHub Pages 部署
 
-1. 推送至 `main`，工作流会自动启用 GitHub Pages，然后依次执行安装、测试、构建并发布 `dist`。
-2. 部署完成后访问 <https://umaydie-cyber.github.io/wowsurviver/>。
-
-如果仓库策略禁止工作流自动启用 Pages，请在仓库 **Settings → Pages → Build and deployment** 中手动将 Source 设为 **GitHub Actions**，再重新运行失败的工作流。
+1. 在仓库 **Settings → Pages → Build and deployment** 中，将 Source 设为 **GitHub Actions**。
+2. 推送至 `main`，工作流会依次执行安装、测试、构建并发布 `dist`。
+3. 部署完成后访问 <https://umaydie-cyber.github.io/wowsurviver/>。
 
 Pages 构建会把 Vite 的资源基础路径设为 `/wowsurviver/`，避免项目站点子路径下的脚本和样式 404。也可直接在 Vercel 导入仓库；默认本地与 Vercel 构建仍使用根路径，`vercel.json` 已提供 SPA 回退规则。
