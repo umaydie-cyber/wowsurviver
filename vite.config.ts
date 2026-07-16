@@ -1,2 +1,5 @@
 import { defineConfig } from 'vite';
-export default defineConfig({ base: '/', build: { sourcemap: true } });
+export default defineConfig({
+  base: process.env.VITE_BASE_PATH ?? '/',
+  build: { sourcemap: true },
+});
