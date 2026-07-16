@@ -34,6 +34,10 @@
 
 正式资源按 `assets/player`、`assets/enemy`、`assets/skill`、`assets/ui` 分类。当前纹理键为 `player`、`wolf`、`boss`、`flame` 和 `xp`；加载正式素材时保持纹理键即可不改业务模块。
 
+## 构建与部署
+
+GitHub Actions 使用 Node.js 24 运行测试与生产构建，并通过 Vercel CLI 部署。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
+
 ## 后续计划
 
 - Boss 范围攻击与音效
