@@ -10,7 +10,7 @@
 
 | 系统 | 实现 |
 | --- | --- |
-| 玩家 | 100 HP、200 移速、10 攻击、等级 1；WASD 移动 |
+| 玩家 | 100 HP、200 移速、10 攻击、等级 1；WASD 八向移动，斜向速度会归一化 |
 | 火焰之息 | 2 秒冷却、自动锁定、基础 20 伤害、飞行速度 380 |
 | 野狼 | 50 HP、80 移速、5 接触伤害；开局 10 只 |
 | 刷新 | 每 30 秒一波，每波数量逐渐增加 |
@@ -33,6 +33,10 @@
 ## 资源替换约定
 
 正式资源按 `assets/player`、`assets/enemy`、`assets/skill`、`assets/ui` 分类。当前纹理键为 `player`、`wolf`、`boss`、`flame` 和 `xp`；加载正式素材时保持纹理键即可不改业务模块。
+
+## 构建与部署
+
+GitHub Actions 使用 Node.js 24 运行测试与生产构建。配置 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` 三个仓库 Secret 后，工作流会通过 Vercel CLI 部署；任一 Secret 缺失时仅跳过部署并给出警告，测试与构建仍可正常完成。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
 
 ## 后续计划
 
