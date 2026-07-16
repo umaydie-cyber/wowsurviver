@@ -167,7 +167,7 @@
 - `UI.ts`：HUD、升级卡片和结算界面。
 - `GameScene.ts`：当前系统组装、碰撞、世界绘制和占位纹理。
 
-## 13. 资源与部署
+GitHub Actions 使用 Node.js 24 运行测试与生产构建，并通过 GitHub Pages 官方 Artifact 流程发布 `dist`。Pages 构建注入 `/wowsurviver/` 资源基础路径，确保游戏在项目站点子目录中加载；本地及 Vercel 构建默认仍使用 `/`。首次发布前须在仓库 **Settings → Pages** 中将 Source 设为 **GitHub Actions**，不需要配置 Vercel Secrets。仓库当前未提交依赖锁文件，因此工作流使用 `npm install` 安装依赖，且不启用 `setup-node` 的 npm 缓存；待提交锁文件后可改回 `npm ci` 与依赖缓存。
 
 正式资源按 `assets/player`、`assets/enemy`、`assets/skill`、`assets/ui` 分类。当前纹理键为 `player`、`wolf`、`boss`、`flame` 和 `xp`；替换正式素材时保持纹理键可避免改动业务模块。
 
