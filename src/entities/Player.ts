@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { nextXpRequirement } from '../systems/progression';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  hp = 100; maxHp = 100; speed = 200; attack = 10; level = 1; xp = 0; xpNeeded = 40;
+  hp = 120; maxHp = 120; speed = 205; attack = 34; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100;
   private keys: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private movement = new Phaser.Math.Vector2();
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -18,4 +18,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (x) this.setFlipX(x < 0);
   }
   gainXp(value: number) { this.xp += value; if (this.xp >= this.xpNeeded) { this.xp -= this.xpNeeded; this.level++; this.xpNeeded = nextXpRequirement(this.xpNeeded); return true; } return false; }
+  gainRage(value: number) { this.rage = Math.min(this.maxRage, this.rage + value); }
+  spendRage(value: number) { if (this.rage < value) return false; this.rage -= value; return true; }
+  heal(value: number) { this.hp = Math.min(this.maxHp, this.hp + value); }
 }
