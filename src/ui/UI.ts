@@ -59,6 +59,7 @@ export class GameUI {
   private level!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
   private rage!: Phaser.GameObjects.Text;
+  private focus!: Phaser.GameObjects.Text;
   private xpFill!: Phaser.GameObjects.Rectangle;
   private upgradeOverlay?: HTMLElement;
 
@@ -74,6 +75,7 @@ export class GameUI {
     this.hp = this.scene.add.text(w / 2 - 390, 26, '', { fontSize: '15px', color: '#f4d58a' }).setScrollFactor(0).setDepth(21);
     this.level = this.scene.add.text(w / 2 - 205, 26, '', { fontSize: '15px', color: '#fff' }).setScrollFactor(0).setDepth(21);
     this.rage = this.scene.add.text(w / 2 - 65, 26, '', { fontSize: '15px', color: '#ff884d' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
+    this.focus = this.scene.add.text(w / 2 + 60, 26, '', { fontSize: '15px', color: '#ffe16b' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
     this.timer = this.scene.add.text(w / 2 + 325, 26, '', { fontFamily: 'Marcellus', fontSize: '17px', color: '#f4d58a' }).setScrollFactor(0).setDepth(21);
     this.scene.add.text(w / 2, 108, `${definition.name}  |  ${definition.skill}自动释放`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
     this.scene.add.rectangle(w / 2, 78, Math.min(w - 50, 650), 8, 0x1d2638).setScrollFactor(0).setDepth(20);
@@ -84,6 +86,7 @@ export class GameUI {
     this.hp.setText(`生命 ${Math.ceil(this.player.hp)} / ${this.player.maxHp}`);
     this.level.setText(`等级 ${this.player.level}`);
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
+    this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
     this.timer.setText(formatTime(seconds));
     this.xpFill.width = Math.max(1, Math.min(this.scene.scale.width - 50, 650) * this.player.xp / this.player.xpNeeded);
   }
