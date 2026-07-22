@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player'; import { Enemy } from '../entities/Enemy'; import { Weapon } from '../combat/Weapon';
-import { Spawner } from '../systems/Spawner'; import { LevelSystem } from '../systems/LevelSystem'; import { GameUI,showClassSelection } from '../ui/UI'; import type { ClassId } from '../classes';
+import { Spawner } from '../systems/Spawner'; import { LevelSystem } from '../systems/LevelSystem'; import { ShopSystem } from '../systems/ShopSystem'; import { GameUI,showClassSelection } from '../ui/UI'; import type { ClassId } from '../classes';
 export class GameScene extends Phaser.Scene{
- private player?:Player;private enemies?:Phaser.Physics.Arcade.Group;private weapon?:Weapon;private spawner?:Spawner;private ui?:GameUI;private started=0;private ended=false;
+ private player?:Player;private enemies?:Phaser.Physics.Arcade.Group;private weapon?:Weapon;private spawner?:Spawner;private ui?:GameUI;private shop?:ShopSystem;private started=0;private ended=false;
  constructor(){super('game');}
  create(){this.makeTextures();this.physics.world.setBounds(0,0,3200,3200);this.drawWorld();this.cameras.main.centerOn(1600,1600);showClassSelection(this,id=>this.startRun(id));}
  update(time:number){if(this.ended||!this.player||!this.enemies||!this.weapon||!this.spawner||!this.ui)return;this.player.update(time);this.enemies.getChildren().forEach(e=>(e as Enemy).chase(this.player!));this.weapon.update(time);const elapsed=(time-this.started)/1000;this.spawner.update(elapsed);this.ui.update(elapsed);}
  private startRun(classId:ClassId){
-  this.player=new Player(this,1600,1600);this.enemies=this.physics.add.group({runChildUpdate:false});this.weapon=new Weapon(this,this.player,this.enemies,classId);this.ui=new GameUI(this,this.player,classId);const levels=new LevelSystem(this,this.player,this.weapon,this.ui,classId);this.spawner=new Spawner(this,this.enemies,this.player);this.spawner.start();
-  this.events.on('skill-hit',(enemy:Enemy)=>{if(enemy.hp<=0&&enemy.active){const x=enemy.x,y=enemy.y;enemy.destroy();const orb=this.physics.add.sprite(x,y,'xp');this.physics.add.overlap(this.player!,orb,()=>{if(!orb.active)return;orb.destroy();if(this.player!.gainXp(12))levels.show();});}});
+  this.player=new Player(this,1600,1600);this.enemies=this.physics.add.group({runChildUpdate:false});this.weapon=new Weapon(this,this.player,this.enemies,classId);this.ui=new GameUI(this,this.player,classId);const levels=new LevelSystem(this,this.player,this.weapon,this.ui,classId);this.spawner=new Spawner(this,this.enemies,this.player);this.shop=new ShopSystem(this.player,this.weapon);this.spawner.start();
+  this.events.on('skill-hit',(enemy:Enemy)=>{if(enemy.hp<=0&&enemy.active){const x=enemy.x,y=enemy.y;enemy.destroy();const orb=this.physics.add.sprite(x,y,'xp');this.physics.add.overlap(this.player!,orb,()=>{if(!orb.active)return;orb.destroy();this.player!.gainAzerite(Phaser.Math.Between(3,6));if(this.player!.gainXp(12))levels.show();});}});
+  this.events.on('wave-break',(wave:number,resume:()=>void)=>{this.physics.pause();this.ui!.showShop(this.shop!.roll(wave),wave,item=>{if(!this.player!.spendAzerite(item.cost))return false;item.apply();this.ui!.update((this.time.now-this.started)/1000);return true;},()=>{this.physics.resume();resume();});});
   this.physics.add.overlap(this.player,this.enemies,(_p,e)=>{const enemy=e as Enemy;if(enemy.getData('hit'))return;enemy.setData('hit',true);this.player!.hp-=this.player!.reduceAttackDamage(enemy.damage);if(classId==='berserker')this.player!.gainRage(enemy.damage);this.cameras.main.shake(100,.006);this.time.delayedCall(700,()=>enemy.active&&enemy.setData('hit',false));if(this.player!.hp<=0&&!this.ended){this.ended=true;this.physics.pause();this.ui!.gameOver(()=>this.scene.restart());}});
   this.cameras.main.startFollow(this.player,true,.09,.09);this.cameras.main.setZoom(1.05);this.started=this.time.now;
  }
