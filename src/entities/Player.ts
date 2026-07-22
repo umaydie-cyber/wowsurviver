@@ -5,7 +5,7 @@ const BASE_MOVE_VELOCITY = 205;
 const FOCUS_TIMEOUT_MS = 3000;
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100;
+  hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100; azerite = 0; skillSlots = 6;
   attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; xpRate = 0;
   private keys: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private movement = new Phaser.Math.Vector2();
@@ -37,6 +37,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   reduceAttackDamage(value: number) { return value * (100 / (100 + Math.max(0, this.armor))); }
   reduceSpellDamage(value: number) { return value * (100 / (100 + Math.max(0, this.magicResistance))); }
   dealtDamage(time = this.scene.time.now) { if (!this.combatFocusActive) this.focusStartedAt = time; this.lastDamageAt = time; }
+  gainAzerite(value: number) { this.azerite += value; }
+  spendAzerite(value: number) { if (this.azerite < value) return false; this.azerite -= value; return true; }
   gainXp(value: number) { this.xp += value * (1 + this.xpRate / 100); if (this.xp >= this.xpNeeded) { this.xp -= this.xpNeeded; this.level++; this.xpNeeded = nextXpRequirement(this.xpNeeded); return true; } return false; }
   gainRage(value: number) { this.rage = Math.min(this.maxRage, this.rage + value); }
   spendRage(value: number) { if (this.rage < value) return false; this.rage -= value; return true; }

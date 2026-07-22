@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import type { Upgrade } from '../systems/LevelSystem';
+import type { ShopItem } from '../systems/ShopSystem';
 import { CLASSES, type ClassId } from '../classes';
 import { formatTime } from '../systems/progression';
 
-function createChoiceOverlay(kind: 'class' | 'upgrade', title: string, subtitle: string) {
+function createChoiceOverlay(kind: 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
   overlay.className = `choice-overlay choice-overlay--${kind}`;
   overlay.setAttribute('aria-label', title);
@@ -58,14 +59,16 @@ export class GameUI {
   private hp!: Phaser.GameObjects.Text;
   private level!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
+  private azerite!: Phaser.GameObjects.Text;
   private rage!: Phaser.GameObjects.Text;
   private focus!: Phaser.GameObjects.Text;
   private xpFill!: Phaser.GameObjects.Rectangle;
   private upgradeOverlay?: HTMLElement;
+  private shopOverlay?: HTMLElement;
 
   constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId) {
     this.create();
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hideUpgrades());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
 
   private create() {
@@ -76,6 +79,7 @@ export class GameUI {
     this.level = this.scene.add.text(w / 2 - 205, 26, '', { fontSize: '15px', color: '#fff' }).setScrollFactor(0).setDepth(21);
     this.rage = this.scene.add.text(w / 2 - 65, 26, '', { fontSize: '15px', color: '#ff884d' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
     this.focus = this.scene.add.text(w / 2 + 60, 26, '', { fontSize: '15px', color: '#ffe16b' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
+    this.azerite = this.scene.add.text(w / 2 + 190, 26, '', { fontSize: '15px', color: '#68e7ff' }).setScrollFactor(0).setDepth(21);
     this.timer = this.scene.add.text(w / 2 + 325, 26, '', { fontFamily: 'Marcellus', fontSize: '17px', color: '#f4d58a' }).setScrollFactor(0).setDepth(21);
     this.scene.add.text(w / 2, 108, `${definition.name}  |  ${definition.skill}自动释放`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
     this.scene.add.rectangle(w / 2, 78, Math.min(w - 50, 650), 8, 0x1d2638).setScrollFactor(0).setDepth(20);
@@ -87,6 +91,7 @@ export class GameUI {
     this.level.setText(`等级 ${this.player.level}`);
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
+    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots}`);
     this.timer.setText(formatTime(seconds));
     this.xpFill.width = Math.max(1, Math.min(this.scene.scale.width - 50, 650) * this.player.xp / this.player.xpNeeded);
   }
@@ -119,6 +124,37 @@ export class GameUI {
   hideUpgrades() {
     this.upgradeOverlay?.remove();
     this.upgradeOverlay = undefined;
+  }
+
+  showShop(items: ShopItem[], wave: number, buy: (item: ShopItem) => boolean, leave: () => void) {
+    this.hideShop();
+    const { overlay, cards } = createChoiceOverlay('shop', `第 ${wave} 波结束 · 艾泽里特商店`, '波次间隔 · 每次显示 5 件道具，且至少包含 1 件技能道具');
+    this.shopOverlay = overlay;
+    items.forEach(item => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'choice-card choice-card--shop';
+      card.innerHTML = `<span class="choice-card__tag">${item.tag} · ${item.cost} 艾泽里特</span>
+        <strong>${item.title}</strong>
+        <span class="choice-card__description">${item.description}</span>`;
+      card.addEventListener('click', () => {
+        if (!buy(item)) { card.classList.add('choice-card--locked'); return; }
+        card.classList.add('choice-card--selected');
+        card.disabled = true;
+      });
+      cards.append(card);
+    });
+    const leaveButton = document.createElement('button');
+    leaveButton.type = 'button';
+    leaveButton.className = 'choice-card choice-card--continue';
+    leaveButton.innerHTML = '<strong>继续下一波</strong><span class="choice-card__description">保留未消费艾泽里特，进入更长一波战斗</span>';
+    leaveButton.addEventListener('click', () => { this.hideShop(); leave(); });
+    cards.append(leaveButton);
+  }
+
+  hideShop() {
+    this.shopOverlay?.remove();
+    this.shopOverlay = undefined;
   }
 
   gameOver(restart: () => void) {
