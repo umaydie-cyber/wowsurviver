@@ -6,7 +6,7 @@ const FOCUS_TIMEOUT_MS = 3000;
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100; azerite = 0; skillSlots = 6;
-  attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; xpRate = 0;
+  attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; xpRate = 0; pickupRange = 0;
   private keys: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private movement = new Phaser.Math.Vector2();
   private focusStartedAt = 0;

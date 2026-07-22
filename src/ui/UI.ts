@@ -91,7 +91,7 @@ export class GameUI {
     this.level.setText(`等级 ${this.player.level}`);
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
-    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots}`);
+    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots} · 拾取 +${this.player.pickupRange}`);
     this.timer.setText(formatTime(seconds));
     this.xpFill.width = Math.max(1, Math.min(this.scene.scale.width - 50, 650) * this.player.xp / this.player.xpNeeded);
   }

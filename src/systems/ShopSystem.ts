@@ -24,6 +24,9 @@ const UTILITY_ITEMS: Omit<ShopItem, 'apply'>[] = [
   { id: 'stat-speed', title: '轻羽靴', tag: '属性', description: '速度 +8。', cost: 12 },
   { id: 'survive-maxhp', title: '耐久护符', tag: '生存', description: '最大生命 +18，并立即恢复 18 点生命。', cost: 16 },
   { id: 'survive-armor', title: '硬化护甲片', tag: '生存', description: '护甲 +10。', cost: 15 },
+  { id: 'pickup-magnet', title: '微型磁石', tag: '属性', description: '拾取范围 +18，让材料无需完全贴身也能收入囊中。', cost: 12 },
+  { id: 'pickup-net', title: '回收网', tag: '属性', description: '拾取范围 +28，并获得 3 艾泽里特返利。', cost: 18 },
+  { id: 'pickup-lens', title: '探矿透镜', tag: '属性', description: '拾取范围 +16，经验获取 +5%。', cost: 20 },
 ];
 
 export class ShopSystem {
@@ -61,5 +64,8 @@ export class ShopSystem {
     if (id === 'stat-speed') this.player.speed += 8;
     if (id === 'survive-maxhp') { this.player.maxHp += 18; this.player.heal(18); }
     if (id === 'survive-armor') this.player.armor += 10;
+    if (id === 'pickup-magnet') this.player.pickupRange += 18;
+    if (id === 'pickup-net') { this.player.pickupRange += 28; this.player.gainAzerite(3); }
+    if (id === 'pickup-lens') { this.player.pickupRange += 16; this.player.xpRate += 5; }
   }
 }
