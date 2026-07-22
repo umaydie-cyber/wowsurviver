@@ -63,6 +63,7 @@ export class GameUI {
   private rage!: Phaser.GameObjects.Text;
   private focus!: Phaser.GameObjects.Text;
   private xpFill!: Phaser.GameObjects.Rectangle;
+  private xpTrackWidth = 1;
   private upgradeOverlay?: HTMLElement;
   private shopOverlay?: HTMLElement;
 
@@ -74,16 +75,22 @@ export class GameUI {
   private create() {
     const w = this.scene.scale.width;
     const definition = CLASSES.find(candidate => candidate.id === this.classId)!;
-    this.scene.add.rectangle(w / 2, 35, Math.min(w - 32, 860), 54, 0x090d17, .88).setScrollFactor(0).setDepth(20).setStrokeStyle(1, definition.color);
-    this.hp = this.scene.add.text(w / 2 - 390, 26, '', { fontSize: '15px', color: '#f4d58a' }).setScrollFactor(0).setDepth(21);
-    this.level = this.scene.add.text(w / 2 - 205, 26, '', { fontSize: '15px', color: '#fff' }).setScrollFactor(0).setDepth(21);
-    this.rage = this.scene.add.text(w / 2 - 65, 26, '', { fontSize: '15px', color: '#ff884d' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
-    this.focus = this.scene.add.text(w / 2 + 60, 26, '', { fontSize: '15px', color: '#ffe16b' }).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
-    this.azerite = this.scene.add.text(w / 2 + 190, 26, '', { fontSize: '15px', color: '#68e7ff' }).setScrollFactor(0).setDepth(21);
-    this.timer = this.scene.add.text(w / 2 + 325, 26, '', { fontFamily: 'Marcellus', fontSize: '17px', color: '#f4d58a' }).setScrollFactor(0).setDepth(21);
-    this.scene.add.text(w / 2, 108, `${definition.name}  |  ${definition.skill}自动释放`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
-    this.scene.add.rectangle(w / 2, 78, Math.min(w - 50, 650), 8, 0x1d2638).setScrollFactor(0).setDepth(20);
-    this.xpFill = this.scene.add.rectangle(w / 2 - Math.min(w - 50, 650) / 2, 78, 1, 8, 0x39d0e7).setOrigin(0, .5).setScrollFactor(0).setDepth(21);
+    const panelWidth = Math.min(w - 32, 940);
+    const panelY = 58;
+    const topRowY = panelY - 22;
+    const middleRowY = panelY + 3;
+    const hintY = panelY + 52;
+    this.xpTrackWidth = Math.min(w - 64, 720);
+    this.scene.add.rectangle(w / 2, panelY, panelWidth, 92, 0x090d17, .9).setScrollFactor(0).setDepth(20).setStrokeStyle(1, definition.color);
+    this.hp = this.scene.add.text(w / 2 - panelWidth * .36, topRowY, '', { fontSize: '15px', color: '#f4d58a' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
+    this.level = this.scene.add.text(w / 2 - panelWidth * .17, topRowY, '', { fontSize: '15px', color: '#fff' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
+    this.azerite = this.scene.add.text(w / 2 + panelWidth * .12, topRowY, '', { fontSize: '15px', color: '#68e7ff' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
+    this.timer = this.scene.add.text(w / 2 + panelWidth * .36, topRowY, '', { fontFamily: 'Marcellus', fontSize: '17px', color: '#f4d58a' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
+    this.rage = this.scene.add.text(w / 2 - panelWidth * .22, middleRowY, '', { fontSize: '14px', color: '#ff884d' }).setOrigin(.5).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
+    this.focus = this.scene.add.text(w / 2 + panelWidth * .18, middleRowY, '', { fontSize: '14px', color: '#ffe16b' }).setOrigin(.5).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
+    this.scene.add.rectangle(w / 2, panelY + 27, this.xpTrackWidth, 8, 0x1d2638).setScrollFactor(0).setDepth(20);
+    this.xpFill = this.scene.add.rectangle(w / 2 - this.xpTrackWidth / 2, panelY + 27, 1, 8, 0x39d0e7).setOrigin(0, .5).setScrollFactor(0).setDepth(21);
+    this.scene.add.text(w / 2, hintY, `${definition.name}  |  ${definition.skill}自动释放`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
   }
 
   update(seconds: number) {
@@ -93,7 +100,7 @@ export class GameUI {
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
     this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots} · 拾取 +${this.player.pickupRange}`);
     this.timer.setText(formatTime(seconds));
-    this.xpFill.width = Math.max(1, Math.min(this.scene.scale.width - 50, 650) * this.player.xp / this.player.xpNeeded);
+    this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
 
   showUpgrades(items: Upgrade[], pick: (upgrade: Upgrade) => void) {
