@@ -67,6 +67,7 @@ export class GameUI {
   private xpTrackWidth = 1;
   private upgradeOverlay?: HTMLElement;
   private shopOverlay?: HTMLElement;
+  private bossMessage?: Phaser.GameObjects.Text;
 
   constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId) {
     this.create();
@@ -164,6 +165,25 @@ export class GameUI {
   hideShop() {
     this.shopOverlay?.remove();
     this.shopOverlay = undefined;
+  }
+
+  showBossBanner(kicker: string, name: string, mechanics: string) {
+    const cx = this.scene.scale.width / 2;
+    const banner = this.scene.add.container(cx, 170).setScrollFactor(0).setDepth(45);
+    const bg = this.scene.add.rectangle(0, 0, 520, 92, 0x210d16, .92).setStrokeStyle(2, 0xd85843);
+    const title = this.scene.add.text(0, -18, `${kicker} · ${name}`, { fontFamily: 'Marcellus', fontSize: '27px', color: '#ffd18b' }).setOrigin(.5);
+    const detail = this.scene.add.text(0, 19, mechanics, { fontSize: '14px', color: '#f2b3ad' }).setOrigin(.5);
+    banner.add([bg, title, detail]);
+    this.scene.tweens.add({ targets: banner, alpha: 0, y: 145, delay: 2800, duration: 500, onComplete: () => banner.destroy() });
+  }
+
+  showBossMessage(title: string, detail: string) {
+    this.bossMessage?.destroy();
+    this.bossMessage = this.scene.add.text(this.scene.scale.width / 2, 130, `${title} · ${detail}`, {
+      fontSize: '18px', color: '#ffe2c0', backgroundColor: '#641f2fcc', padding: { x: 18, y: 10 },
+    }).setOrigin(.5).setScrollFactor(0).setDepth(46);
+    const message = this.bossMessage;
+    this.scene.tweens.add({ targets: message, alpha: 0, delay: 1900, duration: 350, onComplete: () => { if (this.bossMessage === message) this.bossMessage = undefined; message.destroy(); } });
   }
 
   gameOver(restart: () => void) {
