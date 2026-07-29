@@ -22,6 +22,10 @@ export class Spawner {
   private startWave(){this.inBreak=false;this.waveStartedAt=this.scene.time.now;this.nextSpawnAt=this.waveStartedAt;this.scene.events.emit('wave-start',this.currentWave,this.currentWaveSeconds);}
   private endWave(){this.inBreak=true;this.enemies.getChildren().forEach(enemy=>enemy.destroy());this.scene.events.emit('wave-break',this.currentWave,()=>this.continue());}
   private spawnWave(n:number){for(let i=0;i<n;i++)this.spawn(this.pickEnemyKind());}
-  private pickEnemyKind():EnemyKind{return this.wave>=1&&Math.random()<0.35?'swiftClaw':'wolf';}
+  private pickEnemyKind():EnemyKind{
+    const roll=Math.random();
+    if(this.wave>=3&&roll<0.2)return 'murlocShaman';
+    return this.wave>=1&&roll<0.55?'swiftClaw':'wolf';
+  }
   private spawn(kind:EnemyKind){const angle=Math.random()*Math.PI*2, distance=Phaser.Math.Between(430,650); const e=new Enemy(this.scene,this.player.x+Math.cos(angle)*distance,this.player.y+Math.sin(angle)*distance,kind); this.enemies.add(e);}
 }
