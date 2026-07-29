@@ -12,6 +12,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private focusStartedAt = 0;
   private lastDamageAt = -Infinity;
   private reversedUntil = 0;
+  private frozenUntil = 0;
+  private slowedUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'player'); scene.add.existing(this); scene.physics.add.existing(this);
@@ -23,7 +25,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const direction = time < this.reversedUntil ? -1 : 1;
     const x = (Number(this.keys.D.isDown)-Number(this.keys.A.isDown)) * direction;
     const y = (Number(this.keys.S.isDown)-Number(this.keys.W.isDown)) * direction;
-    this.movement.set(x, y).normalize().scale(this.moveVelocity);
+    this.movement.set(x, y).normalize().scale(time < this.frozenUntil ? 0 : this.moveVelocity * (time < this.slowedUntil ? .55 : 1));
     this.setVelocity(this.movement.x, this.movement.y);
     if (x) this.setFlipX(x < 0);
   }
@@ -46,6 +48,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   spendRage(value: number) { if (this.rage < value) return false; this.rage -= value; return true; }
   heal(value: number) { this.hp = Math.min(this.maxHp, this.hp + value); }
   reverseControls(durationMs: number, time = this.scene.time.now) { this.reversedUntil = Math.max(this.reversedUntil, time + durationMs); }
+  freeze(durationMs: number, time = this.scene.time.now) { this.frozenUntil = Math.max(this.frozenUntil, time + durationMs); }
+  slow(durationMs: number, time = this.scene.time.now) { this.slowedUntil = Math.max(this.slowedUntil, time + durationMs); }
   get controlsReversed() { return this.scene.time.now < this.reversedUntil; }
   private updateCombatFocus(time: number) { if (time - this.lastDamageAt > FOCUS_TIMEOUT_MS) this.focusStartedAt = 0; }
 }
