@@ -4,6 +4,7 @@ import type { Upgrade } from '../systems/LevelSystem';
 import type { ShopItem } from '../systems/ShopSystem';
 import { CLASSES, type ClassId } from '../classes';
 import { formatTime } from '../systems/progression';
+import type { UpgradeRewardType } from '../systems/upgradeRules';
 
 function createChoiceOverlay(kind: 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
@@ -103,9 +104,10 @@ export class GameUI {
     this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
 
-  showUpgrades(items: Upgrade[], pick: (upgrade: Upgrade) => void) {
+  showUpgrades(items: Upgrade[], rewardType: UpgradeRewardType, pick: (upgrade: Upgrade) => void) {
     this.hideUpgrades();
-    const { overlay, cards } = createChoiceOverlay('upgrade', '选择成长方向', '升级四选一 · 点击卡片立即生效');
+    const skillReward = rewardType === 'skill';
+    const { overlay, cards } = createChoiceOverlay('upgrade', skillReward ? '选择技能强化' : '选择基础属性', `${skillReward ? '每 5 级技能奖励' : '本级基础属性奖励'} · 四选一 · 点击卡片立即生效`);
     this.upgradeOverlay = overlay;
     let selected = false;
 

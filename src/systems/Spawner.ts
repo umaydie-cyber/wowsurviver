@@ -1,4 +1,5 @@
 import Phaser from 'phaser'; import { Enemy, type EnemyKind } from '../entities/Enemy'; import { Player } from '../entities/Player';
+import { pickEnemyKindForWave } from './spawnRules';
 
 const SPAWN_INTERVAL_MS = 5000;
 const FIRST_WAVE_SECONDS = 20;
@@ -23,9 +24,7 @@ export class Spawner {
   private endWave(){this.inBreak=true;this.enemies.getChildren().forEach(enemy=>enemy.destroy());this.scene.events.emit('wave-break',this.currentWave,()=>this.continue());}
   private spawnWave(n:number){for(let i=0;i<n;i++)this.spawn(this.pickEnemyKind());}
   private pickEnemyKind():EnemyKind{
-    const roll=Math.random();
-    if(this.wave>=3&&roll<0.2)return 'murlocShaman';
-    return this.wave>=1&&roll<0.55?'swiftClaw':'wolf';
+    return pickEnemyKindForWave(this.wave,Math.random());
   }
   private spawn(kind:EnemyKind){const angle=Math.random()*Math.PI*2, distance=Phaser.Math.Between(430,650); const e=new Enemy(this.scene,this.player.x+Math.cos(angle)*distance,this.player.y+Math.sin(angle)*distance,kind); this.enemies.add(e);}
 }
