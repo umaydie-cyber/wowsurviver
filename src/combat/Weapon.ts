@@ -19,6 +19,7 @@ export class Weapon {
     scene.physics.add.overlap(this.projectiles,enemies,(object,target)=>this.projectileHit(object as Projectile,target as Enemy));
   }
   update(time:number){
+    if(this.player.silenced){this.drawWhirlwind(time,false);return;}
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
     if(!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
     const active=this.permanent||time<this.activeUntil;
