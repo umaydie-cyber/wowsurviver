@@ -14,7 +14,7 @@ export class Spawner {
     if(this.inBreak)return;
     const now=this.scene.time.now;
     if(isBossWave(this.currentWave)){
-      if(!this.bossSpawned){this.bossSpawned=true;const boss=Math.random()<.5?'onyxia':'jaina';this.spawn(boss);this.scene.events.emit(`${boss}-start`);}
+      if(!this.bossSpawned){this.bossSpawned=true;const bosses:EnemyKind[]=['onyxia','jaina','thalnos'];const boss=bosses[Math.floor(Math.random()*bosses.length)];this.spawn(boss);this.scene.events.emit(`${boss}-start`);}
     }else if(now>=this.nextSpawnAt){this.spawnWave(10+this.wave*3);this.nextSpawnAt=now+SPAWN_INTERVAL_MS;}
     if(now-this.waveStartedAt>=this.currentWaveSeconds*1000)this.endWave();
   }

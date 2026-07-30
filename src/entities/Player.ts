@@ -14,6 +14,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private reversedUntil = 0;
   private frozenUntil = 0;
   private slowedUntil = 0;
+  private silencedUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'player'); scene.add.existing(this); scene.physics.add.existing(this);
@@ -50,6 +51,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   reverseControls(durationMs: number, time = this.scene.time.now) { this.reversedUntil = Math.max(this.reversedUntil, time + durationMs); }
   freeze(durationMs: number, time = this.scene.time.now) { this.frozenUntil = Math.max(this.frozenUntil, time + durationMs); }
   slow(durationMs: number, time = this.scene.time.now) { this.slowedUntil = Math.max(this.slowedUntil, time + durationMs); }
+  silence(durationMs: number, time = this.scene.time.now) { this.silencedUntil = Math.max(this.silencedUntil, time + durationMs); }
+  get silenced() { return this.scene.time.now < this.silencedUntil; }
   get controlsReversed() { return this.scene.time.now < this.reversedUntil; }
   private updateCombatFocus(time: number) { if (time - this.lastDamageAt > FOCUS_TIMEOUT_MS) this.focusStartedAt = 0; }
 }
