@@ -1,5 +1,6 @@
 import Phaser from 'phaser'; import { Enemy, type EnemyKind } from '../entities/Enemy'; import { Player } from '../entities/Player';
 import { isBossWave, pickEnemyKindForWave } from './spawnRules';
+import type { DifficultyDefinition } from './difficulty';
 
 const SPAWN_INTERVAL_MS = 5000;
 const FIRST_WAVE_SECONDS = 20;
@@ -8,7 +9,7 @@ const MAX_WAVE_SECONDS = 50;
 
 export class Spawner {
   private wave = 0; bossSpawned = false; private waveStartedAt = 0; private nextSpawnAt = 0; private inBreak = false;
-  constructor(private scene:Phaser.Scene,private enemies:Phaser.Physics.Arcade.Group,private player:Player) {}
+  constructor(private scene:Phaser.Scene,private enemies:Phaser.Physics.Arcade.Group,private player:Player,private difficulty?:DifficultyDefinition) {}
   start(){ this.startWave(); }
   update(_elapsed:number){
     if(this.inBreak)return;
@@ -27,5 +28,5 @@ export class Spawner {
   private pickEnemyKind():EnemyKind{
     return pickEnemyKindForWave(this.wave,Math.random());
   }
-  spawn(kind:EnemyKind,distance=Phaser.Math.Between(430,650)){const angle=Math.random()*Math.PI*2; const e=new Enemy(this.scene,this.player.x+Math.cos(angle)*distance,this.player.y+Math.sin(angle)*distance,kind); this.enemies.add(e);return e;}
+  spawn(kind:EnemyKind,distance=Phaser.Math.Between(430,650)){const angle=Math.random()*Math.PI*2; const e=new Enemy(this.scene,this.player.x+Math.cos(angle)*distance,this.player.y+Math.sin(angle)*distance,kind,this.difficulty); this.enemies.add(e);return e;}
 }

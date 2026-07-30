@@ -5,8 +5,9 @@ import type { ShopItem } from '../systems/ShopSystem';
 import { CLASSES, type ClassId } from '../classes';
 import { formatTime } from '../systems/progression';
 import type { UpgradeRewardType } from '../systems/upgradeRules';
+import { DIFFICULTIES, type DifficultyDefinition, type DifficultyId } from '../systems/difficulty';
 
-function createChoiceOverlay(kind: 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
+function createChoiceOverlay(kind: 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
   overlay.className = `choice-overlay choice-overlay--${kind}`;
   overlay.setAttribute('aria-label', title);
@@ -21,6 +22,29 @@ function createChoiceOverlay(kind: 'class' | 'upgrade' | 'shop', title: string, 
   overlay.append(heading, description, cards);
   document.querySelector('#game')!.append(overlay);
   return { overlay, cards };
+}
+
+export function showDifficultySelection(scene: Phaser.Scene, pick: (id: DifficultyId) => void) {
+  const { overlay, cards } = createChoiceOverlay('difficulty', '选择难度', '命中率表示技能保持命中才能勉强过关的平衡目标');
+  let selected = false;
+  DIFFICULTIES.forEach(difficulty => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'choice-card choice-card--difficulty';
+    card.style.setProperty('--card-color', difficulty.color);
+    card.innerHTML = `<span class="choice-card__icon">${difficulty.id}</span><strong>${difficulty.name}</strong>
+      <span class="choice-card__skill">最低技能命中率 ${difficulty.requiredAccuracy}%</span>
+      <span class="choice-card__description">敌人生命 ${Math.round(difficulty.enemyHealthMultiplier * 100)}% · 伤害 ${Math.round(difficulty.enemyDamageMultiplier * 100)}%</span>`;
+    card.addEventListener('click', () => {
+      if (selected) return;
+      selected = true;
+      cards.querySelectorAll('button').forEach(button => { button.disabled = true; });
+      overlay.remove();
+      pick(difficulty.id);
+    });
+    cards.append(card);
+  });
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.remove());
 }
 
 export function showClassSelection(scene: Phaser.Scene, pick: (id: ClassId) => void) {
@@ -69,7 +93,7 @@ export class GameUI {
   private shopOverlay?: HTMLElement;
   private bossMessage?: Phaser.GameObjects.Text;
 
-  constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId) {
+  constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition) {
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -101,7 +125,7 @@ export class GameUI {
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
     this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots} · 拾取 +${this.player.pickupRange}`);
-    this.timer.setText(formatTime(seconds));
+    this.timer.setText(`${this.difficulty.name} · ${formatTime(seconds)}`);
     this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
 
@@ -136,11 +160,12 @@ export class GameUI {
     this.upgradeOverlay = undefined;
   }
 
-  showShop(items: ShopItem[], wave: number, buy: (item: ShopItem) => boolean, leave: () => void) {
+  showShop(items: ShopItem[], wave: number, buy: (item: ShopItem, visibleIds: string[]) => ShopItem | false, leave: () => void) {
     this.hideShop();
-    const { overlay, cards } = createChoiceOverlay('shop', `第 ${wave} 波结束 · 艾泽里特商店`, '波次间隔 · 每次显示 5 件道具，且至少包含 1 件技能道具');
+    const { overlay, cards } = createChoiceOverlay('shop', `第 ${wave} 波结束 · 艾泽里特商店`, '高价道具需要取舍 · 购买后该货位会立即刷新');
     this.shopOverlay = overlay;
-    items.forEach(item => {
+    const visibleItems = [...items];
+    const renderItem = (item: ShopItem, index: number) => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'choice-card choice-card--shop';
@@ -148,12 +173,14 @@ export class GameUI {
         <strong>${item.title}</strong>
         <span class="choice-card__description">${item.description}</span>`;
       card.addEventListener('click', () => {
-        if (!buy(item)) { card.classList.add('choice-card--locked'); return; }
-        card.classList.add('choice-card--selected');
-        card.disabled = true;
+        const replacement = buy(item, visibleItems.map(candidate => candidate.id));
+        if (!replacement) { card.classList.add('choice-card--locked'); return; }
+        visibleItems[index] = replacement;
+        card.replaceWith(renderItem(replacement, index));
       });
-      cards.append(card);
-    });
+      return card;
+    };
+    visibleItems.forEach((item, index) => cards.append(renderItem(item, index)));
     const leaveButton = document.createElement('button');
     leaveButton.type = 'button';
     leaveButton.className = 'choice-card choice-card--continue';

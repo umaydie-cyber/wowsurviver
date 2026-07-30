@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from './Player';
+import type { DifficultyDefinition } from '../systems/difficulty';
 
 export type EnemyKind = 'wolf' | 'swiftClaw' | 'murlocShaman' | 'fireFistOgre' | 'onyxia' | 'onyxiaWhelp' | 'jaina' | 'waterElemental' | 'thalnos' | 'thalnosSoul';
 
@@ -23,10 +24,12 @@ const WHELP_CAST_INTERVAL_MS = 2800;
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hp: number; maxHp: number; damage: number; speed: number; boss: boolean; kind: EnemyKind;
   private nextCastAt = 0;
-  constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind = 'wolf') {
+  constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind = 'wolf', difficulty?: DifficultyDefinition) {
     const stats = ENEMY_STATS[kind];
     super(scene, x, y, stats.texture); scene.add.existing(this); scene.physics.add.existing(this);
-    this.kind = kind; this.boss = kind === 'onyxia' || kind === 'jaina' || kind === 'thalnos'; this.hp = stats.hp; this.maxHp = stats.hp; this.damage = stats.damage; this.speed = stats.speed;
+    const healthMultiplier = difficulty?.enemyHealthMultiplier ?? 1;
+    const damageMultiplier = difficulty?.enemyDamageMultiplier ?? 1;
+    this.kind = kind; this.boss = kind === 'onyxia' || kind === 'jaina' || kind === 'thalnos'; this.hp = Math.round(stats.hp * healthMultiplier); this.maxHp = this.hp; this.damage = stats.damage * damageMultiplier; this.speed = stats.speed;
     this.setCircle(stats.radius).setDepth(3);
     if (kind === 'murlocShaman' || kind === 'fireFistOgre' || kind === 'onyxiaWhelp') this.nextCastAt = scene.time.now + Phaser.Math.Between(1200, 2400);
   }
