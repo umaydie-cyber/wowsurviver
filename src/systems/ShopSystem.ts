@@ -11,22 +11,22 @@ export type ShopItem = {
 };
 
 const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
-  { id: 'skill-damage', title: '技能强化：锋刃校准', tag: '技能', description: '当前自动技能伤害 +25%。同名强化不占用技能栏。', cost: 18 },
-  { id: 'skill-speed', title: '技能强化：急速符文', tag: '技能', description: '当前自动技能冷却缩短，并小幅提高投射物速度。', cost: 20 },
-  { id: 'skill-multishot', title: '技能：副手协同', tag: '技能', description: '远程职业额外发射 1 枚弹体；近战职业获得额外怒气效率。', cost: 24 },
-  { id: 'skill-control', title: '技能：寒能牵引', tag: '技能', description: '提高控制或范围表现，让清怪更稳定。', cost: 22 },
+  { id: 'skill-damage', title: '技能强化：锋刃校准', tag: '技能', description: '当前自动技能伤害 +25%。同名强化不占用技能栏。', cost: 40 },
+  { id: 'skill-speed', title: '技能强化：急速符文', tag: '技能', description: '当前自动技能冷却缩短，并小幅提高投射物速度。', cost: 44 },
+  { id: 'skill-multishot', title: '技能：副手协同', tag: '技能', description: '远程职业额外发射 1 枚弹体；近战职业获得额外怒气效率。', cost: 52 },
+  { id: 'skill-control', title: '技能：寒能牵引', tag: '技能', description: '提高控制或范围表现，让清怪更稳定。', cost: 48 },
 ];
 
 const UTILITY_ITEMS: Omit<ShopItem, 'apply'>[] = [
-  { id: 'stat-attack', title: '磨利武器', tag: '属性', description: '攻击强度 +8。', cost: 14 },
-  { id: 'stat-spell', title: '聚能水晶', tag: '属性', description: '法术强度 +8。', cost: 14 },
-  { id: 'stat-haste', title: '加速齿轮', tag: '属性', description: '急速 +8%。', cost: 16 },
-  { id: 'stat-speed', title: '轻羽靴', tag: '属性', description: '速度 +8。', cost: 12 },
-  { id: 'survive-maxhp', title: '耐久护符', tag: '生存', description: '最大生命 +18，并立即恢复 18 点生命。', cost: 16 },
-  { id: 'survive-armor', title: '硬化护甲片', tag: '生存', description: '护甲 +10。', cost: 15 },
-  { id: 'pickup-magnet', title: '微型磁石', tag: '属性', description: '拾取范围 +18，让材料无需完全贴身也能收入囊中。', cost: 12 },
-  { id: 'pickup-net', title: '回收网', tag: '属性', description: '拾取范围 +28，并获得 3 艾泽里特返利。', cost: 18 },
-  { id: 'pickup-lens', title: '探矿透镜', tag: '属性', description: '拾取范围 +16，经验获取 +5%。', cost: 20 },
+  { id: 'stat-attack', title: '磨利武器', tag: '属性', description: '攻击强度 +8。', cost: 32 },
+  { id: 'stat-spell', title: '聚能水晶', tag: '属性', description: '法术强度 +8。', cost: 32 },
+  { id: 'stat-haste', title: '加速齿轮', tag: '属性', description: '急速 +8%。', cost: 36 },
+  { id: 'stat-speed', title: '轻羽靴', tag: '属性', description: '速度 +8。', cost: 28 },
+  { id: 'survive-maxhp', title: '耐久护符', tag: '生存', description: '最大生命 +18，并立即恢复 18 点生命。', cost: 36 },
+  { id: 'survive-armor', title: '硬化护甲片', tag: '生存', description: '护甲 +10。', cost: 34 },
+  { id: 'pickup-magnet', title: '微型磁石', tag: '属性', description: '拾取范围 +18，让材料无需完全贴身也能收入囊中。', cost: 28 },
+  { id: 'pickup-net', title: '回收网', tag: '属性', description: '拾取范围 +28，并获得 3 艾泽里特返利。', cost: 40 },
+  { id: 'pickup-lens', title: '探矿透镜', tag: '属性', description: '拾取范围 +16，经验获取 +5%。', cost: 44 },
 ];
 
 export class ShopSystem {
@@ -41,6 +41,12 @@ export class ShopSystem {
       items.push(this.toItem(pool.splice(index, 1)[0]));
     }
     return items;
+  }
+
+  rollReplacement(excludedIds: string[]): ShopItem {
+    const pool = [...SKILL_ITEMS, ...UTILITY_ITEMS].filter(item => !excludedIds.includes(item.id));
+    const candidates = pool.length ? pool : [...SKILL_ITEMS, ...UTILITY_ITEMS];
+    return this.toItem(candidates[Math.floor(Math.random() * candidates.length)]);
   }
 
   private toItem(definition: Omit<ShopItem, 'apply'>): ShopItem {
