@@ -60,7 +60,10 @@ export function showClassSelection(scene: Phaser.Scene, pick: (id: ClassId) => v
     card.type = 'button';
     card.className = 'choice-card';
     card.style.setProperty('--card-color', `#${definition.color.toString(16).padStart(6, '0')}`);
-    card.innerHTML = `<span class="choice-card__icon">${definition.skill.slice(0, 1)}</span>
+    const icon = definition.icon
+      ? `<img class="choice-card__icon-image" src="${definition.icon}" alt="" />`
+      : definition.skill.slice(0, 1);
+    card.innerHTML = `<span class="choice-card__icon">${icon}</span>
       <strong>${definition.name}</strong>
       <span class="choice-card__skill">初始技能 · ${definition.skill}</span>
       <span class="choice-card__description">${definition.fantasy}</span>`;

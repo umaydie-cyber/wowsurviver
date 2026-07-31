@@ -16,6 +16,7 @@ canvas { display:block; }
 .choice-card:disabled { cursor:default; }
 .choice-card--selected,.choice-card--selected:hover { transform:scale(1.03); background:#314a66; box-shadow:0 0 26px var(--card-color); }
 .choice-card__icon { width:62px; height:62px; display:grid; place-items:center; border:2px solid var(--card-color); border-radius:50%; color:#fff; background:color-mix(in srgb,var(--card-color) 22%,transparent); font-size:28px; }
+.choice-card__icon-image { width:100%; height:100%; display:block; border-radius:50%; object-fit:cover; }
 .choice-card strong { color:#f4d58a; font-size:21px; }
 .choice-card__skill { font-size:13px; }
 .choice-card__description { color:#dbe7f5; font-size:14px; line-height:1.55; }
