@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { nextXpRequirement } from '../systems/progression';
-import type { ClassId } from '../classes';
+import { SKILL_SLOT_LAYOUT, WARRIOR_ACTIVE_SKILLS, type ClassId } from '../classes';
 
 const BASE_MOVE_VELOCITY = 205;
 const FOCUS_TIMEOUT_MS = 3000;
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100; azerite = 0; skillSlots = 6;
+  hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100; azerite = 0;
+  readonly skillSlots = SKILL_SLOT_LAYOUT;
+  heroicLeapUnlocked = false; shieldWallUnlocked = false;
   attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; xpRate = 0; pickupRange = 0;
   private keys: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private movement = new Phaser.Math.Vector2();
@@ -16,20 +18,27 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private frozenUntil = 0;
   private slowedUntil = 0;
   private silencedUntil = 0;
+  private speedBoostUntil = 0; private shieldWallUntil = 0; private heroicLeapReadyAt = 0; private shieldWallReadyAt = 0;
+  private spaceKey: Phaser.Input.Keyboard.Key; private qKey: Phaser.Input.Keyboard.Key;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, classId: ClassId) {
+  constructor(scene: Phaser.Scene, x: number, y: number, public readonly classId: ClassId) {
     super(scene, x, y, classId === 'berserker' ? 'fury-warrior' : 'player'); scene.add.existing(this); scene.physics.add.existing(this);
     if (classId === 'berserker') this.setDisplaySize(48, 48).setCircle(20, 4, 4);
     else this.setCircle(20);
     this.setDepth(5).setCollideWorldBounds(true);
     this.keys = scene.input.keyboard!.addKeys('W,A,S,D') as typeof this.keys;
+    this.spaceKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.qKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
   }
   update(time = this.scene.time.now) {
     this.updateCombatFocus(time);
     const direction = time < this.reversedUntil ? -1 : 1;
     const x = (Number(this.keys.D.isDown)-Number(this.keys.A.isDown)) * direction;
     const y = (Number(this.keys.S.isDown)-Number(this.keys.W.isDown)) * direction;
-    this.movement.set(x, y).normalize().scale(time < this.frozenUntil ? 0 : this.moveVelocity * (time < this.slowedUntil ? .55 : 1));
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.useHeroicLeap(x, y, time);
+    if (Phaser.Input.Keyboard.JustDown(this.qKey)) this.useShieldWall(time);
+    const boost = time < this.speedBoostUntil ? 1 + WARRIOR_ACTIVE_SKILLS.heroicLeap.speedBonus : 1;
+    this.movement.set(x, y).normalize().scale(time < this.frozenUntil ? 0 : this.moveVelocity * (time < this.slowedUntil ? .55 : 1) * boost);
     this.setVelocity(this.movement.x, this.movement.y);
     if (x) this.setFlipX(x < 0);
   }
@@ -44,6 +53,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   calculateSpellDamage(multiplier = 1) { return this.spellPower * multiplier * (1 + this.versatility / 100); }
   reduceAttackDamage(value: number) { return value * (100 / (100 + Math.max(0, this.armor))); }
   reduceSpellDamage(value: number) { return value * (100 / (100 + Math.max(0, this.magicResistance))); }
+  reduceAllDamage(value: number) { return value * (this.shieldWallActive ? 1 - WARRIOR_ACTIVE_SKILLS.shieldWall.damageReduction : 1); }
+  unlockHeroicLeap() { this.heroicLeapUnlocked = true; }
+  unlockShieldWall() { this.shieldWallUnlocked = true; }
+  get shieldWallActive() { return this.scene.time.now < this.shieldWallUntil; }
+  private useHeroicLeap(x: number, y: number, time: number) {
+    if (!this.heroicLeapUnlocked || this.silenced || time < this.heroicLeapReadyAt || (!x && !y)) return;
+    const leap = new Phaser.Math.Vector2(x, y).normalize().scale(150);
+    this.setPosition(Phaser.Math.Clamp(this.x + leap.x, 20, 3180), Phaser.Math.Clamp(this.y + leap.y, 20, 3180));
+    this.speedBoostUntil = time + WARRIOR_ACTIVE_SKILLS.heroicLeap.durationMs;
+    this.heroicLeapReadyAt = time + WARRIOR_ACTIVE_SKILLS.heroicLeap.cooldownMs;
+  }
+  private useShieldWall(time: number) {
+    if (!this.shieldWallUnlocked || this.silenced || time < this.shieldWallReadyAt) return;
+    this.shieldWallUntil = time + WARRIOR_ACTIVE_SKILLS.shieldWall.durationMs;
+    this.shieldWallReadyAt = time + WARRIOR_ACTIVE_SKILLS.shieldWall.cooldownMs;
+  }
   dealtDamage(time = this.scene.time.now) { if (!this.combatFocusActive) this.focusStartedAt = time; this.lastDamageAt = time; }
   gainAzerite(value: number) { this.azerite += value; }
   spendAzerite(value: number) { if (this.azerite < value) return false; this.azerite -= value; return true; }

@@ -1,5 +1,6 @@
 import { Player } from '../entities/Player';
 import { Weapon, type SkillTalent } from '../combat/Weapon';
+import { WARRIOR_ACTIVE_SKILLS } from '../classes';
 
 export type ShopItem = {
   id: string;
@@ -11,6 +12,8 @@ export type ShopItem = {
 };
 
 const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
+  { id: 'heroic-leap', title: `位移技能：${WARRIOR_ACTIVE_SKILLS.heroicLeap.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.heroicLeap.description}按空格使用，冷却 15 秒。`, cost: 48 },
+  { id: 'shield-wall', title: `爆发技能：${WARRIOR_ACTIVE_SKILLS.shieldWall.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.shieldWall.description}按 Q 使用，冷却 30 秒。`, cost: 52 },
   { id: 'skill-damage', title: '技能强化：锋刃校准', tag: '技能', description: '当前自动技能伤害 +25%。同名强化不占用技能栏。', cost: 40 },
   { id: 'skill-speed', title: '技能强化：急速符文', tag: '技能', description: '当前自动技能冷却缩短，并小幅提高投射物速度。', cost: 44 },
   { id: 'skill-multishot', title: '技能：副手协同', tag: '技能', description: '远程职业额外发射 1 枚弹体；近战职业获得额外怒气效率。', cost: 52 },
@@ -33,8 +36,9 @@ export class ShopSystem {
   constructor(private player: Player, private weapon: Weapon) {}
 
   roll(wave: number): ShopItem[] {
-    const skill = this.toItem(SKILL_ITEMS[wave % SKILL_ITEMS.length]);
-    const pool = [...SKILL_ITEMS, ...UTILITY_ITEMS].filter(item => item.id !== skill.id);
+    const skillPool = this.availableSkillItems;
+    const skill = this.toItem(skillPool[wave % skillPool.length]);
+    const pool = [...skillPool, ...UTILITY_ITEMS].filter(item => item.id !== skill.id);
     const items = [skill];
     while (items.length < 5 && pool.length) {
       const index = Math.floor(Math.random() * pool.length);
@@ -44,9 +48,18 @@ export class ShopSystem {
   }
 
   rollReplacement(excludedIds: string[]): ShopItem {
-    const pool = [...SKILL_ITEMS, ...UTILITY_ITEMS].filter(item => !excludedIds.includes(item.id));
-    const candidates = pool.length ? pool : [...SKILL_ITEMS, ...UTILITY_ITEMS];
+    const available = [...this.availableSkillItems, ...UTILITY_ITEMS];
+    const pool = available.filter(item => !excludedIds.includes(item.id));
+    const candidates = pool.length ? pool : available;
     return this.toItem(candidates[Math.floor(Math.random() * candidates.length)]);
+  }
+
+  private get availableSkillItems() {
+    return SKILL_ITEMS.filter(item => {
+      if (item.id === 'heroic-leap') return this.player.classId === 'berserker' && !this.player.heroicLeapUnlocked;
+      if (item.id === 'shield-wall') return this.player.classId === 'berserker' && !this.player.shieldWallUnlocked;
+      return true;
+    });
   }
 
   private toItem(definition: Omit<ShopItem, 'apply'>): ShopItem {
@@ -54,6 +67,8 @@ export class ShopSystem {
   }
 
   private apply(id: string) {
+    if (id === 'heroic-leap') { this.player.unlockHeroicLeap(); return; }
+    if (id === 'shield-wall') { this.player.unlockShieldWall(); return; }
     const talentMap: Record<string, SkillTalent> = {
       'skill-damage': 'damage',
       'skill-speed': 'speed',
