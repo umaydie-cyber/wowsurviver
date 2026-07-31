@@ -92,7 +92,7 @@ export class GameUI {
   constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId) {
     const initialSkill = getBasicSkillDefinition(classId, basicSkillId)!.name;
     const initialSkills = [initialSkill];
-    this.equippedSkills = [...initialSkills, ...Array(Math.max(0, player.skillSlots - initialSkills.length)).fill('')];
+    this.equippedSkills = [...initialSkills, ...Array(Math.max(0, player.skillSlots.passive - initialSkills.length)).fill('')];
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -125,7 +125,7 @@ export class GameUI {
     this.level.setText(`等级 ${this.player.level}`);
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
-    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 ${this.player.skillSlots} · 拾取 +${this.player.pickupRange}`);
+    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 4+1+1 · 拾取 +${this.player.pickupRange}`);
     this.timer.setText(`${this.difficulty.name} · ${formatTime(seconds)}`);
     this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
@@ -212,6 +212,7 @@ export class GameUI {
         if (!replacement) { card.classList.add('choice-card--locked'); return; }
         visibleItems[index] = replacement;
         renderSummary();
+        renderSlots();
         card.replaceWith(renderItem(replacement, index));
       });
       return card;
@@ -221,7 +222,10 @@ export class GameUI {
     const equipped = this.equippedSkills;
     let draggedIndex = -1;
     const renderSlots = () => {
-      slots.innerHTML = equipped.map((skill, index) => `<div class="shop-skill-slot${skill ? ' shop-skill-slot--filled' : ''}" draggable="${Boolean(skill)}" data-index="${index}"><span>${index + 1}</span><strong>${skill || '空技能槽'}</strong>${skill ? '<small>自动释放</small>' : ''}</div>`).join('');
+      const passiveSlots = equipped.map((skill, index) => `<div class="shop-skill-slot${skill ? ' shop-skill-slot--filled' : ''}" draggable="${Boolean(skill)}" data-index="${index}"><span>P${index + 1}</span><strong>${skill || '空被动释放槽'}</strong><small>${skill ? '自动释放' : '被动释放'}</small></div>`).join('');
+      const movement = this.player.heroicLeapUnlocked ? '英勇跳跃' : '空位移技能槽';
+      const burst = this.player.shieldWallUnlocked ? '盾墙' : '空爆发技能槽';
+      slots.innerHTML = `${passiveSlots}<div class="shop-skill-slot${this.player.heroicLeapUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Space</span><strong>${movement}</strong><small>位移技能</small></div><div class="shop-skill-slot${this.player.shieldWallUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Q</span><strong>${burst}</strong><small>爆发技能</small></div>`;
       slots.querySelectorAll<HTMLElement>('.shop-skill-slot').forEach(slot => {
         slot.addEventListener('dragstart', () => { draggedIndex = Number(slot.dataset.index); slot.classList.add('is-dragging'); });
         slot.addEventListener('dragend', () => slot.classList.remove('is-dragging'));
