@@ -1,16 +1,16 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player'; import { Enemy } from '../entities/Enemy'; import { Weapon } from '../combat/Weapon';
-import { Spawner } from '../systems/Spawner'; import { LevelSystem } from '../systems/LevelSystem'; import { ShopSystem } from '../systems/ShopSystem'; import { GameUI,showClassSelection,showDifficultySelection } from '../ui/UI'; import type { ClassId } from '../classes';
+import { Spawner } from '../systems/Spawner'; import { LevelSystem } from '../systems/LevelSystem'; import { ShopSystem } from '../systems/ShopSystem'; import { GameUI,showStartSelection } from '../ui/UI'; import type { BasicSkillId, ClassId } from '../classes';
 import { getDifficulty, type DifficultyDefinition } from '../systems/difficulty';
 export class GameScene extends Phaser.Scene{
  private player?:Player;private enemies?:Phaser.Physics.Arcade.Group;private enemyProjectiles?:Phaser.Physics.Arcade.Group;private weapon?:Weapon;private spawner?:Spawner;private ui?:GameUI;private shop?:ShopSystem;private started=0;private ended=false;private lightningWarnings=new Set<Phaser.GameObjects.Graphics>();private bossWarnings=new Set<Phaser.GameObjects.Graphics>();private bossTimers=new Set<Phaser.Time.TimerEvent>();private classId?:ClassId;private difficulty?:DifficultyDefinition;
  constructor(){super('game');}
  preload(){this.load.svg('fury-warrior','assets/player/fury-warrior.svg',{width:48,height:48});}
- create(){this.makeTextures();this.physics.world.setBounds(0,0,3200,3200);this.drawWorld();this.cameras.main.centerOn(1600,1600);showDifficultySelection(this,id=>{this.difficulty=getDifficulty(id);showClassSelection(this,classId=>this.startRun(classId));});}
+ create(){this.makeTextures();this.physics.world.setBounds(0,0,3200,3200);this.drawWorld();this.cameras.main.centerOn(1600,1600);showStartSelection(this,selection=>{this.difficulty=getDifficulty(selection.difficultyId);this.startRun(selection.classId,selection.basicSkillId);});}
  update(time:number){if(this.ended||!this.player||!this.enemies||!this.weapon||!this.spawner||!this.ui)return;this.player.update(time);this.enemies.getChildren().forEach(e=>(e as Enemy).updateBehavior(this.player!,time));this.weapon.update(time);const elapsed=(time-this.started)/1000;this.spawner.update(elapsed);this.ui.update(elapsed);}
- private startRun(classId:ClassId){
+ private startRun(classId:ClassId,basicSkillId:BasicSkillId){
   this.classId=classId;
-  const difficulty=this.difficulty!;this.player=new Player(this,1600,1600,classId);this.enemies=this.physics.add.group({runChildUpdate:false});this.enemyProjectiles=this.physics.add.group({runChildUpdate:false});this.weapon=new Weapon(this,this.player,this.enemies,classId);this.ui=new GameUI(this,this.player,classId,difficulty);const levels=new LevelSystem(this,this.player,this.weapon,this.ui,classId);this.spawner=new Spawner(this,this.enemies,this.player,difficulty);this.shop=new ShopSystem(this.player,this.weapon);this.spawner.start();
+  const difficulty=this.difficulty!;this.player=new Player(this,1600,1600,classId);this.enemies=this.physics.add.group({runChildUpdate:false});this.enemyProjectiles=this.physics.add.group({runChildUpdate:false});this.weapon=new Weapon(this,this.player,this.enemies,classId,basicSkillId);this.ui=new GameUI(this,this.player,classId,difficulty,basicSkillId);const levels=new LevelSystem(this,this.player,this.weapon,this.ui,classId);this.spawner=new Spawner(this,this.enemies,this.player,difficulty);this.shop=new ShopSystem(this.player,this.weapon);this.spawner.start();
   this.events.on('skill-hit',(enemy:Enemy)=>{if(enemy.hp<=0&&enemy.active){const x=enemy.x,y=enemy.y;enemy.destroy();this.createDrop(x,y,()=>{this.player!.gainAzerite(Phaser.Math.Between(3,6));if(this.player!.gainXp(12))levels.show();});}});
   this.events.on('shaman-lightning',(x:number,y:number)=>this.createLightningStrike(x,y,classId));
   this.events.on('ogre-fire-fists',(x:number,y:number,targetX:number,targetY:number)=>this.createFireFists(x,y,targetX,targetY,classId));

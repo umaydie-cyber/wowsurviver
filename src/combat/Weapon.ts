@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { Projectile } from './Projectile';
-import type { ClassId } from '../classes';
+import type { BasicSkillId, ClassId } from '../classes';
 import { BLOODTHIRST, bloodthirstHealing, EXECUTE, executeDamageMultiplier } from './BerserkerSkills';
 
 export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot';
@@ -12,7 +12,7 @@ export class Weapon {
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
   private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
-  constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId){
+  constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId,readonly basicSkillId:BasicSkillId){
     this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:2000;
     this.effect=scene.add.circle(player.x,player.y,this.range,0xf08a24,.11).setStrokeStyle(4,0xffc247,.8).setDepth(4).setVisible(false);
     this.blades=scene.add.graphics().setDepth(6).setVisible(false);
@@ -22,10 +22,11 @@ export class Weapon {
   update(time:number){
     if(this.player.silenced){this.drawWhirlwind(time,false);return;}
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
-    if(!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
-    this.updateMortalStrike(time);
-    this.updateBloodthirst(time);
-    this.updateExecute(time);
+    if(this.basicSkillId==='whirlwind'&&!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
+    if(this.basicSkillId==='mortal-strike')this.updateMortalStrike(time);
+    if(this.basicSkillId==='bloodthirst')this.updateBloodthirst(time);
+    if(this.basicSkillId==='execute')this.updateExecute(time);
+    if(this.basicSkillId!=='whirlwind'){this.drawWhirlwind(time,false);return;}
     const active=this.permanent||time<this.activeUntil;
     if(this.permanent&&time>=this.nextPermanentTick){this.hitEnemies.clear();this.nextPermanentTick=time+650;}
     this.drawWhirlwind(time,active);if(!active)return;

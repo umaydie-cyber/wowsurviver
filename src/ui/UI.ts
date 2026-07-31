@@ -2,12 +2,12 @@ import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import type { Upgrade } from '../systems/LevelSystem';
 import type { ShopItem } from '../systems/ShopSystem';
-import { CLASSES, type ClassId } from '../classes';
+import { CLASSES, getBasicSkillDefinition, getClassDefinition, type BasicSkillId, type ClassId } from '../classes';
 import { formatTime } from '../systems/progression';
 import type { UpgradeRewardType } from '../systems/upgradeRules';
 import { DIFFICULTIES, type DifficultyDefinition, type DifficultyId } from '../systems/difficulty';
 
-function createChoiceOverlay(kind: 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
+function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
   overlay.className = `choice-overlay choice-overlay--${kind}`;
   overlay.setAttribute('aria-label', title);
@@ -24,62 +24,53 @@ function createChoiceOverlay(kind: 'difficulty' | 'class' | 'upgrade' | 'shop', 
   return { overlay, cards };
 }
 
-export function showDifficultySelection(scene: Phaser.Scene, pick: (id: DifficultyId) => void) {
-  const { overlay, cards } = createChoiceOverlay('difficulty', '选择难度', '命中率表示技能保持命中才能勉强过关的平衡目标');
-  let selected = false;
-  DIFFICULTIES.forEach(difficulty => {
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'choice-card choice-card--difficulty';
-    card.style.setProperty('--card-color', difficulty.color);
-    card.innerHTML = `<span class="choice-card__icon">${difficulty.id}</span><strong>${difficulty.name}</strong>
-      <span class="choice-card__skill">最低技能命中率 ${difficulty.requiredAccuracy}%</span>
-      <span class="choice-card__description">敌人生命 ${Math.round(difficulty.enemyHealthMultiplier * 100)}% · 伤害 ${Math.round(difficulty.enemyDamageMultiplier * 100)}%</span>`;
-    card.addEventListener('click', () => {
-      if (selected) return;
-      selected = true;
-      cards.querySelectorAll('button').forEach(button => { button.disabled = true; });
-      overlay.remove();
-      pick(difficulty.id);
+export type StartSelection = { difficultyId: DifficultyId; classId: ClassId; basicSkillId: BasicSkillId };
+
+export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartSelection) => void) {
+  const { overlay } = createChoiceOverlay('start', '准备踏入战场', '同时选择难度、职业与该职业可用的基础输出技能');
+  const form = document.createElement('div');
+  form.className = 'start-builder';
+  overlay.querySelector('.choice-overlay__cards')!.replaceWith(form);
+  let difficultyId: DifficultyId = 3;
+  let classId: ClassId = CLASSES[0].id;
+  let basicSkillId: BasicSkillId = CLASSES[0].basicSkills[0].id;
+  let submitted = false;
+  const section = (title: string) => { const element = document.createElement('section'); element.className = 'start-builder__section'; element.innerHTML = `<h2>${title}</h2>`; form.append(element); return element; };
+  const difficultySection = section('1 · 难度');
+  const difficultyChoices = document.createElement('div'); difficultyChoices.className = 'start-builder__choices start-builder__choices--difficulty'; difficultySection.append(difficultyChoices);
+  const classSection = section('2 · 职业');
+  const classChoices = document.createElement('div'); classChoices.className = 'start-builder__choices'; classSection.append(classChoices);
+  const skillSection = section('3 · 初始武器与基础输出技能');
+  const skillChoices = document.createElement('div'); skillChoices.className = 'start-builder__skills'; skillSection.append(skillChoices);
+  const startButton = document.createElement('button'); startButton.type = 'button'; startButton.className = 'start-builder__submit'; startButton.textContent = '开始战斗'; form.append(startButton);
+
+  const renderSkills = () => {
+    skillChoices.innerHTML = '';
+    getClassDefinition(classId).basicSkills.forEach(skill => {
+      const card = document.createElement('button'); card.type = 'button'; card.className = `start-skill${skill.id === basicSkillId ? ' is-selected' : ''}`;
+      card.innerHTML = `<span>${skill.weapon}</span><strong>${skill.name}</strong><small>${skill.description}</small>`;
+      card.addEventListener('click', () => { basicSkillId = skill.id; renderSkills(); }); skillChoices.append(card);
     });
-    cards.append(card);
+  };
+  DIFFICULTIES.forEach(difficulty => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = `start-option${difficulty.id === difficultyId ? ' is-selected' : ''}`; button.style.setProperty('--card-color', difficulty.color);
+    button.innerHTML = `<strong>${difficulty.id}</strong><span>${difficulty.name}</span><small>命中 ${difficulty.requiredAccuracy}% · 生命 ${Math.round(difficulty.enemyHealthMultiplier * 100)}%</small>`;
+    button.addEventListener('click', () => { difficultyId = difficulty.id; difficultyChoices.querySelectorAll('button').forEach(item => item.classList.toggle('is-selected', item === button)); }); difficultyChoices.append(button);
   });
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.remove());
-}
-
-export function showClassSelection(scene: Phaser.Scene, pick: (id: ClassId) => void) {
-  const { overlay, cards } = createChoiceOverlay(
-    'class',
-    '选择你的职业',
-    '职业决定初始技能、成长词条与整局玩法',
-  );
-  let selected = false;
-
   CLASSES.forEach(definition => {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'choice-card';
+    card.className = `start-option start-option--class${definition.id === classId ? ' is-selected' : ''}`;
     card.style.setProperty('--card-color', `#${definition.color.toString(16).padStart(6, '0')}`);
-    const icon = definition.icon
-      ? `<img class="choice-card__icon-image" src="${definition.icon}" alt="" />`
-      : definition.skill.slice(0, 1);
-    card.innerHTML = `<span class="choice-card__icon">${icon}</span>
-      <strong>${definition.name}</strong>
-      <span class="choice-card__skill">初始技能 · ${definition.skill}</span>
-      <span class="choice-card__description">${definition.fantasy}</span>`;
+    card.innerHTML = `<strong>${definition.name}</strong><span>${definition.fantasy}</span><small>${definition.basicSkills.length} 个可用基础技能</small>`;
     card.addEventListener('click', () => {
-      if (selected) return;
-      selected = true;
-      card.classList.add('choice-card--selected');
-      cards.querySelectorAll('button').forEach(button => { button.disabled = true; });
-      window.setTimeout(() => {
-        overlay.remove();
-        pick(definition.id);
-      }, 80);
+      classId = definition.id; basicSkillId = definition.basicSkills[0].id;
+      classChoices.querySelectorAll('button').forEach(item => item.classList.toggle('is-selected', item === card)); renderSkills();
     });
-    cards.append(card);
+    classChoices.append(card);
   });
-
+  renderSkills();
+  startButton.addEventListener('click', () => { if (submitted) return; submitted = true; startButton.disabled = true; overlay.remove(); pick({ difficultyId, classId, basicSkillId }); });
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.remove());
 }
 
@@ -98,9 +89,9 @@ export class GameUI {
   private acquiredTalents = new Map<string, { title: string; tag: string; description: string; count: number }>();
   private equippedSkills: string[];
 
-  constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition) {
-    const initialSkill = CLASSES.find(candidate => candidate.id === classId)!.skill;
-    const initialSkills = classId === 'berserker' ? [initialSkill, '致死打击', '嗜血', '斩杀'] : [initialSkill];
+  constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId) {
+    const initialSkill = getBasicSkillDefinition(classId, basicSkillId)!.name;
+    const initialSkills = [initialSkill];
     this.equippedSkills = [...initialSkills, ...Array(Math.max(0, player.skillSlots - initialSkills.length)).fill('')];
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
@@ -124,7 +115,8 @@ export class GameUI {
     this.focus = this.scene.add.text(w / 2 + panelWidth * .18, middleRowY, '', { fontSize: '14px', color: '#ffe16b' }).setOrigin(.5).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
     this.scene.add.rectangle(w / 2, panelY + 27, this.xpTrackWidth, 8, 0x1d2638).setScrollFactor(0).setDepth(20);
     this.xpFill = this.scene.add.rectangle(w / 2 - this.xpTrackWidth / 2, panelY + 27, 1, 8, 0x39d0e7).setOrigin(0, .5).setScrollFactor(0).setDepth(21);
-    const skillHint = this.classId === 'berserker' ? `${definition.skill}、致死打击、嗜血、斩杀自动释放` : `${definition.skill}自动释放`;
+    const skill = getBasicSkillDefinition(this.classId, this.basicSkillId)!;
+    const skillHint = `${skill.name}自动释放 · 初始武器 ${skill.weapon}`;
     this.scene.add.text(w / 2, hintY, `${definition.name}  |  ${skillHint}`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
   }
 
