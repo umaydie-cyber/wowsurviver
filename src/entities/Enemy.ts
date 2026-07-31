@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from './Player';
 import type { DifficultyDefinition } from '../systems/difficulty';
+import { HealingBlock } from '../combat/HealingBlock';
 
 export type EnemyKind = 'wolf' | 'swiftClaw' | 'murlocShaman' | 'fireFistOgre' | 'onyxia' | 'onyxiaWhelp' | 'jaina' | 'waterElemental' | 'thalnos' | 'thalnosSoul';
 
@@ -24,6 +25,7 @@ const WHELP_CAST_INTERVAL_MS = 2800;
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hp: number; maxHp: number; damage: number; speed: number; boss: boolean; kind: EnemyKind;
   private nextCastAt = 0;
+  private healingBlock = new HealingBlock();
   constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind = 'wolf', difficulty?: DifficultyDefinition) {
     const stats = ENEMY_STATS[kind];
     super(scene, x, y, stats.texture); scene.add.existing(this); scene.physics.add.existing(this);
@@ -48,4 +50,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.scene.events.emit('whelp-fireburst', this.x, this.y);
     }
   }
+  blockHealing(until: number) { this.healingBlock.block(until); }
+  heal(amount: number, time: number) {
+    if (this.healingBlock.isBlocked(time)) return 0;
+    const restored = Math.min(Math.max(0, amount), this.maxHp - this.hp);
+    this.hp += restored;
+    return restored;
+  }
+  isHealingBlocked(time: number) { return this.healingBlock.isBlocked(time); }
 }

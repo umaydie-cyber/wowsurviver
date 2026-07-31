@@ -36,7 +36,7 @@ export class GameScene extends Phaser.Scene{
  }
  private castLifeDrain(){
   const boss=this.getThalnos();if(!boss||!this.player)return;this.ui?.showBossMessage('生命吸取','必定命中：持续 5 秒并为萨尔诺斯恢复生命');
-  let ticks=0;const drain=this.time.addEvent({delay:1000,repeat:4,callback:()=>{const current=this.getThalnos();if(!current||!this.player||this.ended)return;this.damagePlayer(3);current.hp=Math.min(current.maxHp,current.hp+current.maxHp*.02);if(++ticks===5)this.bossTimers.delete(drain);}});this.bossTimers.add(drain);
+  let ticks=0;const drain=this.time.addEvent({delay:1000,repeat:4,callback:()=>{const current=this.getThalnos();if(!current||!this.player||this.ended)return;this.damagePlayer(3);current.heal(current.maxHp*.02,this.time.now);if(++ticks===5)this.bossTimers.delete(drain);}});this.bossTimers.add(drain);
  }
  private castSoulScream(){
   const boss=this.getThalnos();if(!boss)return;this.ui?.showBossMessage('灵魂尖啸','四周爆发音符，命中后沉默 3 秒！');
