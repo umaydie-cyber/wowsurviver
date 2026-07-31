@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { nextXpRequirement } from '../systems/progression';
+import type { ClassId } from '../classes';
 
 const BASE_MOVE_VELOCITY = 205;
 const FOCUS_TIMEOUT_MS = 3000;
@@ -16,9 +17,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private slowedUntil = 0;
   private silencedUntil = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, 'player'); scene.add.existing(this); scene.physics.add.existing(this);
-    this.setCircle(20).setDepth(5).setCollideWorldBounds(true);
+  constructor(scene: Phaser.Scene, x: number, y: number, classId: ClassId) {
+    super(scene, x, y, classId === 'berserker' ? 'fury-warrior' : 'player'); scene.add.existing(this); scene.physics.add.existing(this);
+    if (classId === 'berserker') this.setDisplaySize(48, 48).setCircle(20, 4, 4);
+    else this.setCircle(20);
+    this.setDepth(5).setCollideWorldBounds(true);
     this.keys = scene.input.keyboard!.addKeys('W,A,S,D') as typeof this.keys;
   }
   update(time = this.scene.time.now) {

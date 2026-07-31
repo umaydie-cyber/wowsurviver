@@ -60,7 +60,10 @@ export function showClassSelection(scene: Phaser.Scene, pick: (id: ClassId) => v
     card.type = 'button';
     card.className = 'choice-card';
     card.style.setProperty('--card-color', `#${definition.color.toString(16).padStart(6, '0')}`);
-    card.innerHTML = `<span class="choice-card__icon">${definition.skill.slice(0, 1)}</span>
+    const icon = definition.icon
+      ? `<img class="choice-card__icon-image" src="${definition.icon}" alt="" />`
+      : definition.skill.slice(0, 1);
+    card.innerHTML = `<span class="choice-card__icon">${icon}</span>
       <strong>${definition.name}</strong>
       <span class="choice-card__skill">初始技能 · ${definition.skill}</span>
       <span class="choice-card__description">${definition.fantasy}</span>`;
@@ -92,8 +95,12 @@ export class GameUI {
   private upgradeOverlay?: HTMLElement;
   private shopOverlay?: HTMLElement;
   private bossMessage?: Phaser.GameObjects.Text;
+  private acquiredTalents = new Map<string, { title: string; tag: string; description: string; count: number }>();
+  private equippedSkills: string[];
 
   constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition) {
+    const initialSkill = CLASSES.find(candidate => candidate.id === classId)!.skill;
+    this.equippedSkills = [initialSkill, ...Array(Math.max(0, player.skillSlots - 1)).fill('')];
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -160,10 +167,44 @@ export class GameUI {
     this.upgradeOverlay = undefined;
   }
 
+  recordTalent(upgrade: Pick<Upgrade, 'id' | 'title' | 'tag' | 'description'>) {
+    const current = this.acquiredTalents.get(upgrade.id);
+    this.acquiredTalents.set(upgrade.id, { ...upgrade, count: (current?.count ?? 0) + 1 });
+  }
+
   showShop(items: ShopItem[], wave: number, buy: (item: ShopItem, visibleIds: string[]) => ShopItem | false, leave: () => void) {
     this.hideShop();
-    const { overlay, cards } = createChoiceOverlay('shop', `第 ${wave} 波结束 · 艾泽里特商店`, '高价道具需要取舍 · 购买后该货位会立即刷新');
+    const overlay = document.createElement('section');
+    overlay.className = 'choice-overlay choice-overlay--shop';
+    overlay.setAttribute('aria-label', `第 ${wave} 波结束 · 艾泽里特商店`);
+    overlay.innerHTML = `<header class="shop-header"><div><span class="shop-header__eyebrow">第 ${wave} 波完成</span><h1>艾泽里特商店</h1></div><p>购买后货位立即刷新，整备完成后进入下一波</p></header>
+      <main class="shop-layout">
+        <aside class="shop-left"><section class="shop-panel shop-vitals" aria-label="角色资源"></section><section class="shop-panel shop-talents"><h2>已获天赋</h2><div class="shop-talents__list"></div></section></aside>
+        <section class="shop-stock"><div class="shop-stock__heading"><h2>本轮货物</h2><span>点击购买</span></div><div class="choice-overlay__cards"></div></section>
+        <aside class="shop-panel shop-stats"><h2>角色基础属性</h2><div class="shop-stats__list"></div></aside>
+      </main>
+      <footer class="shop-loadout"><div class="shop-loadout__heading"><h2>已装配技能</h2><span>拖拽技能调整顺序</span></div><div class="shop-skill-slots"></div><button type="button" class="shop-continue">继续下一波 <span>›</span></button></footer>`;
+    document.querySelector('#game')!.append(overlay);
     this.shopOverlay = overlay;
+    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.remove());
+    const cards = overlay.querySelector('.choice-overlay__cards')!;
+    const vitals = overlay.querySelector('.shop-vitals')!;
+    const stats = overlay.querySelector('.shop-stats__list')!;
+    const talentList = overlay.querySelector('.shop-talents__list')!;
+    const renderSummary = () => {
+      vitals.innerHTML = `<div><span>等级 / 经验</span><strong>Lv.${this.player.level} · ${Math.floor(this.player.xp)} / ${this.player.xpNeeded}</strong></div>
+        <div><span>生命上限</span><strong>${Math.ceil(this.player.maxHp)}</strong></div><div><span>艾泽里特</span><strong class="shop-vitals__currency">${this.player.azerite}</strong></div>`;
+      const attributes = [
+        ['攻击强度', this.player.attackPower.toFixed(1)], ['法术强度', this.player.spellPower.toFixed(1)], ['速度', this.player.speed.toFixed(1)],
+        ['护甲', this.player.armor.toFixed(1)], ['魔抗', this.player.magicResistance.toFixed(1)], ['全能伤害率', `${this.player.versatility.toFixed(1)}%`],
+        ['急速', `${this.player.haste.toFixed(1)}%`], ['精通', this.player.mastery.toFixed(1)], ['经验获取', `+${this.player.xpRate.toFixed(1)}%`], ['拾取范围', `+${this.player.pickupRange}`],
+      ];
+      stats.innerHTML = attributes.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
+    };
+    renderSummary();
+    talentList.innerHTML = this.acquiredTalents.size
+      ? [...this.acquiredTalents.values()].map(talent => `<article><span>${talent.tag}</span><strong>${talent.title}${talent.count > 1 ? ` ×${talent.count}` : ''}</strong><p>${talent.description}</p></article>`).join('')
+      : '<p class="shop-empty">尚未获得职业天赋<br>每 5 级可选择一次</p>';
     const visibleItems = [...items];
     const renderItem = (item: ShopItem, index: number) => {
       const card = document.createElement('button');
@@ -176,17 +217,28 @@ export class GameUI {
         const replacement = buy(item, visibleItems.map(candidate => candidate.id));
         if (!replacement) { card.classList.add('choice-card--locked'); return; }
         visibleItems[index] = replacement;
+        renderSummary();
         card.replaceWith(renderItem(replacement, index));
       });
       return card;
     };
     visibleItems.forEach((item, index) => cards.append(renderItem(item, index)));
-    const leaveButton = document.createElement('button');
-    leaveButton.type = 'button';
-    leaveButton.className = 'choice-card choice-card--continue';
-    leaveButton.innerHTML = '<strong>继续下一波</strong><span class="choice-card__description">保留未消费艾泽里特，进入更长一波战斗</span>';
+    const slots = overlay.querySelector('.shop-skill-slots')!;
+    const equipped = this.equippedSkills;
+    let draggedIndex = -1;
+    const renderSlots = () => {
+      slots.innerHTML = equipped.map((skill, index) => `<div class="shop-skill-slot${skill ? ' shop-skill-slot--filled' : ''}" draggable="${Boolean(skill)}" data-index="${index}"><span>${index + 1}</span><strong>${skill || '空技能槽'}</strong>${skill ? '<small>自动释放</small>' : ''}</div>`).join('');
+      slots.querySelectorAll<HTMLElement>('.shop-skill-slot').forEach(slot => {
+        slot.addEventListener('dragstart', () => { draggedIndex = Number(slot.dataset.index); slot.classList.add('is-dragging'); });
+        slot.addEventListener('dragend', () => slot.classList.remove('is-dragging'));
+        slot.addEventListener('dragover', event => { event.preventDefault(); slot.classList.add('is-dragover'); });
+        slot.addEventListener('dragleave', () => slot.classList.remove('is-dragover'));
+        slot.addEventListener('drop', event => { event.preventDefault(); const target = Number(slot.dataset.index); if (draggedIndex < 0 || draggedIndex === target) return; [equipped[draggedIndex], equipped[target]] = [equipped[target], equipped[draggedIndex]]; this.equippedSkills = equipped; draggedIndex = -1; renderSlots(); });
+      });
+    };
+    renderSlots();
+    const leaveButton = overlay.querySelector<HTMLButtonElement>('.shop-continue')!;
     leaveButton.addEventListener('click', () => { this.hideShop(); leave(); });
-    cards.append(leaveButton);
   }
 
   hideShop() {
