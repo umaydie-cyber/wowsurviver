@@ -3,13 +3,14 @@ import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { Projectile } from './Projectile';
 import type { ClassId } from '../classes';
+import { BLOODTHIRST, bloodthirstHealing, EXECUTE, executeDamageMultiplier } from './BerserkerSkills';
 
 export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot';
 
 export class Weapon {
   cooldown:number; range=92; duration=650; damageMultiplier=1; projectileSpeed=380;
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
-  private lastCast=-3000; private lastMortalStrike=-4500; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
+  private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId){
     this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:2000;
@@ -23,6 +24,8 @@ export class Weapon {
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
     if(!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
     this.updateMortalStrike(time);
+    this.updateBloodthirst(time);
+    this.updateExecute(time);
     const active=this.permanent||time<this.activeUntil;
     if(this.permanent&&time>=this.nextPermanentTick){this.hitEnemies.clear();this.nextPermanentTick=time+650;}
     this.drawWhirlwind(time,active);if(!active)return;
@@ -56,6 +59,30 @@ export class Weapon {
     const wound=this.scene.add.text(target.x,target.y-30,'禁疗',{fontSize:'13px',fontStyle:'bold',color:'#ff6675',stroke:'#31060b',strokeThickness:3}).setOrigin(.5).setDepth(8);
     this.scene.tweens.add({targets:wound,y:wound.y-18,alpha:0,duration:700,onComplete:()=>wound.destroy()});
     this.scene.cameras.main.shake(90,.004);this.scene.events.emit('skill-hit',target);
+  }
+  private nearestTargetInRange(range:number){
+    return (this.enemies.getChildren() as Enemy[]).filter(enemy=>enemy.active&&enemy.hp>0&&Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<=range).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
+  }
+  private updateBloodthirst(time:number){
+    if(time-this.lastBloodthirst<BLOODTHIRST.cooldownMs/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=this.nearestTargetInRange(BLOODTHIRST.range);if(!target)return;
+    this.lastBloodthirst=time;target.hp-=this.player.calculateAttackDamage(BLOODTHIRST.damageMultiplier*this.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(6);
+    const healing=bloodthirstHealing(this.player.maxHp,Math.random());if(healing)this.player.heal(healing);
+    this.drawMeleeStrike(target,0xff4055,'嗜血',healing?`恢复 ${Math.ceil(healing)}`:undefined);this.scene.events.emit('skill-hit',target);
+  }
+  private updateExecute(time:number){
+    if(time-this.lastExecute<EXECUTE.cooldownMs/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=this.nearestTargetInRange(EXECUTE.range);if(!target)return;
+    const empowered=target.hp/target.maxHp<=EXECUTE.healthThreshold;
+    this.lastExecute=time;target.hp-=this.player.calculateAttackDamage(executeDamageMultiplier(target.hp,target.maxHp)*this.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(5);
+    this.drawMeleeStrike(target,empowered?0xffd24a:0xbcc8d8,empowered?'斩杀！':'斩杀');this.scene.events.emit('skill-hit',target);
+  }
+  private drawMeleeStrike(target:Enemy,color:number,label:string,subLabel?:string){
+    const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y),strike=this.scene.add.graphics().setDepth(7);
+    strike.lineStyle(10,color,.95).lineBetween(this.player.x+Math.cos(angle)*20,this.player.y+Math.sin(angle)*20,target.x,target.y);
+    this.scene.tweens.add({targets:strike,alpha:0,duration:190,onComplete:()=>strike.destroy()});
+    const text=this.scene.add.text(target.x,target.y-30,subLabel?`${label} · ${subLabel}`:label,{fontSize:'13px',fontStyle:'bold',color:'#fff3c4',stroke:'#321016',strokeThickness:3}).setOrigin(.5).setDepth(8);
+    this.scene.tweens.add({targets:text,y:text.y-18,alpha:0,duration:650,onComplete:()=>text.destroy()});this.scene.cameras.main.shake(75,.003);
   }
   private drawWhirlwind(time:number,active:boolean){this.effect.setPosition(this.player.x,this.player.y).setRadius(this.range).setVisible(active);this.blades.clear().setVisible(active);if(!active)return;const count=this.twinStrike?4:2;this.blades.lineStyle(8,0xe7edf4,.9);for(let i=0;i<count;i++){const angle=time*.012+i*Math.PI*2/count;this.blades.lineBetween(this.player.x+Math.cos(angle)*this.range*.25,this.player.y+Math.sin(angle)*this.range*.25,this.player.x+Math.cos(angle)*this.range*.88,this.player.y+Math.sin(angle)*this.range*.88);}}
 }
