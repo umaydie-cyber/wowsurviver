@@ -10,7 +10,51 @@ canvas { display:block; }
 .choice-overlay__cards { display:grid; grid-template-columns:repeat(4,minmax(150px,220px)); gap:16px; width:min(100%,928px); }
 .choice-overlay--difficulty .choice-overlay__cards { grid-template-columns:repeat(5,minmax(135px,190px)); width:min(100%,1014px); }
 .choice-card--difficulty { min-height:245px; }
-.choice-overlay--shop .choice-overlay__cards { grid-template-columns:repeat(3,minmax(150px,220px)); width:min(100%,720px); }
+.choice-overlay--shop { display:grid; grid-template-rows:auto minmax(0,1fr) auto; align-items:stretch; justify-content:stretch; gap:16px; padding:20px 24px; overflow:auto; background:radial-gradient(circle at 50% -20%,#263249 0,#101725 42%,#060a12 100%); }
+.choice-overlay--shop::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.22; background-image:linear-gradient(135deg,transparent 48%,#d2a44f 49%,transparent 50%); background-size:40px 40px; }
+.shop-header,.shop-layout,.shop-loadout { position:relative; z-index:1; }
+.shop-header { display:flex; align-items:flex-end; justify-content:space-between; padding:0 4px 12px; border-bottom:1px solid #695a3c; }
+.choice-overlay--shop .shop-header h1 { margin:2px 0 0; font-size:34px; }
+.shop-header__eyebrow { color:#d88c45; font-size:12px; font-weight:700; letter-spacing:.18em; }
+.shop-header p { margin:0; color:#8f9bae; font-size:13px; }
+.shop-layout { display:grid; grid-template-columns:minmax(190px,230px) minmax(480px,1fr) minmax(200px,260px); gap:16px; min-height:0; }
+.shop-left { display:grid; grid-template-rows:auto minmax(0,1fr); gap:12px; min-height:0; }
+.shop-panel,.shop-stock { border:1px solid #39445a; border-radius:8px; background:linear-gradient(155deg,rgba(25,34,51,.98),rgba(10,15,25,.98)); box-shadow:0 12px 32px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.04); }
+.shop-vitals { padding:12px; display:grid; gap:7px; }
+.shop-vitals>div,.shop-stats__list>div { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.shop-vitals>div { padding:7px 9px; border-radius:5px; background:#0b111d; }
+.shop-vitals span,.shop-stats span { color:#8f9bae; font-size:12px; }
+.shop-vitals strong { color:#f4e1b0; font-size:14px; }
+.shop-vitals__currency { color:#62e4f2!important; }
+.shop-talents,.shop-stats { padding:15px; min-height:0; }
+.shop-panel h2,.shop-stock h2,.shop-loadout h2 { margin:0; color:#eac980; font:20px Marcellus,serif; }
+.shop-talents__list { display:grid; gap:8px; max-height:100%; margin-top:12px; overflow:auto; }
+.shop-talents article { padding:9px 10px; border-left:3px solid #dc713c; background:#0b111d; }
+.shop-talents article span { color:#e77d43; font-size:10px; }
+.shop-talents article strong { display:block; margin-top:2px; color:#f2d89c; font-size:13px; }
+.shop-talents article p { margin:3px 0 0; color:#9eabba; font-size:11px; line-height:1.35; }
+.shop-empty { color:#707d90; text-align:center; font-size:12px; line-height:1.7; }
+.shop-stock { padding:14px; min-width:0; }
+.shop-stock__heading,.shop-loadout__heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.shop-stock__heading span,.shop-loadout__heading span { color:#7f8b9d; font-size:11px; }
+.choice-overlay--shop .choice-overlay__cards { display:grid; grid-template-columns:repeat(5,minmax(110px,1fr)); gap:9px; width:100%; }
+.choice-overlay--shop .choice-card--shop { min-height:190px; padding:14px 9px; gap:10px; border-radius:6px; }
+.choice-overlay--shop .choice-card--shop strong { font-size:16px; }
+.choice-overlay--shop .choice-card__description { font-size:12px; }
+.shop-stats__list { display:grid; grid-template-columns:1fr; gap:0; margin-top:10px; }
+.shop-stats__list>div { min-height:29px; padding:5px 3px; border-bottom:1px solid #273247; }
+.shop-stats__list strong { color:#e8d29f; font-size:13px; font-variant-numeric:tabular-nums; }
+.shop-loadout { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto; column-gap:20px; padding:14px 16px; border:1px solid #55482f; border-radius:8px; background:#0c121e; }
+.shop-loadout__heading { grid-column:1; }
+.shop-skill-slots { grid-column:1; display:grid; grid-template-columns:repeat(6,minmax(95px,1fr)); gap:8px; }
+.shop-skill-slot { position:relative; min-height:62px; padding:10px 8px 8px 32px; border:1px dashed #3b475b; border-radius:6px; color:#626e80; background:#080d16; transition:border-color .12s,transform .12s,background .12s; }
+.shop-skill-slot>span { position:absolute; left:9px; top:9px; color:#677386; font:12px Marcellus,serif; }
+.shop-skill-slot strong { display:block; color:inherit; font-size:13px; }
+.shop-skill-slot small { color:#d07b42; font-size:10px; }
+.shop-skill-slot--filled { cursor:grab; border:1px solid #bd793f; color:#f1d69c; background:linear-gradient(145deg,#321b18,#15121a); box-shadow:inset 0 0 18px rgba(209,81,33,.13); }
+.shop-skill-slot.is-dragging { opacity:.45; transform:scale(.96); }.shop-skill-slot.is-dragover { border-color:#68e7ff; background:#112936; }
+.shop-continue { grid-column:2; grid-row:1/3; align-self:stretch; min-width:170px; border:1px solid #c39448; border-radius:6px; color:#19120a; background:linear-gradient(#f0cf82,#c79747); font:700 16px inherit; cursor:pointer; box-shadow:0 4px 18px rgba(218,161,69,.18); }
+.shop-continue:hover,.shop-continue:focus-visible { outline:2px solid #ffe0a0; filter:brightness(1.08); }.shop-continue span { margin-left:10px; font-size:24px; }
 .choice-card { --card-color:#c89b3c; min-height:270px; padding:24px 14px; border:3px solid var(--card-color); border-radius:4px; color:#fff; background:#111827; font:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:transform .12s ease,background .12s ease,box-shadow .12s ease; }
 .choice-card:hover,.choice-card:focus-visible { outline:none; transform:scale(1.03); background:#293a56; box-shadow:0 0 22px color-mix(in srgb,var(--card-color) 45%,transparent); }
 .choice-card:disabled { cursor:default; }
@@ -39,4 +83,10 @@ canvas { display:block; }
 @media (max-width:1050px) {
   .choice-overlay--difficulty { justify-content:flex-start; overflow:auto; }
   .choice-overlay--difficulty .choice-overlay__cards { grid-template-columns:repeat(2,minmax(140px,1fr)); }
+  .choice-overlay--shop { display:block; }
+  .shop-layout { grid-template-columns:1fr; }
+  .shop-left { grid-template-columns:1fr 1fr; grid-template-rows:auto; }
+  .choice-overlay--shop .choice-overlay__cards { grid-template-columns:repeat(2,minmax(150px,1fr)); }
+  .shop-loadout { margin-top:16px; }
+  .shop-skill-slots { grid-template-columns:repeat(3,1fr); }
 }
