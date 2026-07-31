@@ -100,7 +100,8 @@ export class GameUI {
 
   constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition) {
     const initialSkill = CLASSES.find(candidate => candidate.id === classId)!.skill;
-    this.equippedSkills = [initialSkill, ...Array(Math.max(0, player.skillSlots - 1)).fill('')];
+    const initialSkills = classId === 'berserker' ? [initialSkill, '致死打击'] : [initialSkill];
+    this.equippedSkills = [...initialSkills, ...Array(Math.max(0, player.skillSlots - initialSkills.length)).fill('')];
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -123,7 +124,8 @@ export class GameUI {
     this.focus = this.scene.add.text(w / 2 + panelWidth * .18, middleRowY, '', { fontSize: '14px', color: '#ffe16b' }).setOrigin(.5).setScrollFactor(0).setDepth(21).setVisible(this.classId === 'berserker');
     this.scene.add.rectangle(w / 2, panelY + 27, this.xpTrackWidth, 8, 0x1d2638).setScrollFactor(0).setDepth(20);
     this.xpFill = this.scene.add.rectangle(w / 2 - this.xpTrackWidth / 2, panelY + 27, 1, 8, 0x39d0e7).setOrigin(0, .5).setScrollFactor(0).setDepth(21);
-    this.scene.add.text(w / 2, hintY, `${definition.name}  |  ${definition.skill}自动释放`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
+    const skillHint = this.classId === 'berserker' ? `${definition.skill}、致死打击自动释放` : `${definition.skill}自动释放`;
+    this.scene.add.text(w / 2, hintY, `${definition.name}  |  ${skillHint}`, { fontSize: '13px', color: '#d6a85d' }).setOrigin(.5).setScrollFactor(0).setDepth(21);
   }
 
   update(seconds: number) {

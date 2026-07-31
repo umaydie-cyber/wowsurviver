@@ -9,7 +9,7 @@ export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'
 export class Weapon {
   cooldown:number; range=92; duration=650; damageMultiplier=1; projectileSpeed=380;
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
-  private lastCast=-3000; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
+  private lastCast=-3000; private lastMortalStrike=-4500; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId){
     this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:2000;
@@ -22,6 +22,7 @@ export class Weapon {
     if(this.player.silenced){this.drawWhirlwind(time,false);return;}
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
     if(!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
+    this.updateMortalStrike(time);
     const active=this.permanent||time<this.activeUntil;
     if(this.permanent&&time>=this.nextPermanentTick){this.hitEnemies.clear();this.nextPermanentTick=time+650;}
     this.drawWhirlwind(time,active);if(!active)return;
@@ -43,5 +44,18 @@ export class Weapon {
   private projectileHit(shot:Projectile,enemy:Enemy){if(!shot.active||!enemy.active)return;enemy.hp-=shot.damage;this.player.dealtDamage();if(shot.slow){enemy.speed=Math.max(28,enemy.speed*(1-shot.slow));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&enemy.clearTint());}shot.destroy();this.scene.events.emit('skill-hit',enemy);}
   private get effectiveCooldown(){return this.cooldown/(1+Math.max(0,this.player.totalHaste)/100);}
   private castWhirlwind(time:number){this.lastCast=time;this.activeUntil=time+this.duration;this.hitEnemies.clear();this.castDamage=this.player.spendRage(50)?1.5:1;this.scene.cameras.main.shake(55,.002);}
+  private updateMortalStrike(time:number){
+    if(time-this.lastMortalStrike<4500/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=(this.enemies.getChildren() as Enemy[]).filter(enemy=>enemy.active&&enemy.hp>0&&Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<=145).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
+    if(!target)return;
+    this.lastMortalStrike=time;target.hp-=this.player.calculateAttackDamage(2.8*this.damageMultiplier);target.blockHealing(time+5000);this.player.dealtDamage(time);this.player.gainRage(8);
+    const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y),slash=this.scene.add.graphics().setDepth(7);
+    slash.lineStyle(12,0xe8e8e8,.95).lineBetween(this.player.x+Math.cos(angle)*22,this.player.y+Math.sin(angle)*22,target.x,target.y);
+    slash.lineStyle(4,0xb51f2e,1).lineBetween(this.player.x+Math.cos(angle)*28,this.player.y+Math.sin(angle)*28,target.x+Math.cos(angle)*8,target.y+Math.sin(angle)*8);
+    this.scene.tweens.add({targets:slash,alpha:0,duration:240,onComplete:()=>slash.destroy()});
+    const wound=this.scene.add.text(target.x,target.y-30,'禁疗',{fontSize:'13px',fontStyle:'bold',color:'#ff6675',stroke:'#31060b',strokeThickness:3}).setOrigin(.5).setDepth(8);
+    this.scene.tweens.add({targets:wound,y:wound.y-18,alpha:0,duration:700,onComplete:()=>wound.destroy()});
+    this.scene.cameras.main.shake(90,.004);this.scene.events.emit('skill-hit',target);
+  }
   private drawWhirlwind(time:number,active:boolean){this.effect.setPosition(this.player.x,this.player.y).setRadius(this.range).setVisible(active);this.blades.clear().setVisible(active);if(!active)return;const count=this.twinStrike?4:2;this.blades.lineStyle(8,0xe7edf4,.9);for(let i=0;i<count;i++){const angle=time*.012+i*Math.PI*2/count;this.blades.lineBetween(this.player.x+Math.cos(angle)*this.range*.25,this.player.y+Math.sin(angle)*this.range*.25,this.player.x+Math.cos(angle)*this.range*.88,this.player.y+Math.sin(angle)*this.range*.88);}}
 }
