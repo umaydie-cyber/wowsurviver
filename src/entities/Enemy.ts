@@ -25,6 +25,7 @@ const WHELP_CAST_INTERVAL_MS = 2800;
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hp: number; maxHp: number; damage: number; speed: number; boss: boolean; kind: EnemyKind;
   private nextCastAt = 0;
+  private frozenUntil = 0;
   private healingBlock = new HealingBlock();
   constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind = 'wolf', difficulty?: DifficultyDefinition) {
     const stats = ENEMY_STATS[kind];
@@ -37,6 +38,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
   updateBehavior(player: Player, time: number) {
     if (this.kind === 'thalnosSoul') { this.setVelocity(0, 0); return; }
+    if (this.isFrozen(time)) { this.setVelocity(0, 0); return; }
     this.scene.physics.moveToObject(this, player, this.speed); this.setFlipX(this.body!.velocity.x < 0);
     if (time < this.nextCastAt) return;
     if (this.kind === 'murlocShaman') {
@@ -58,4 +60,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return restored;
   }
   isHealingBlocked(time: number) { return this.healingBlock.isBlocked(time); }
+  freeze(until: number) { this.frozenUntil = Math.max(this.frozenUntil, until); this.setTint(0xc8f7ff); }
+  isFrozen(time: number) { return time < this.frozenUntil; }
 }
