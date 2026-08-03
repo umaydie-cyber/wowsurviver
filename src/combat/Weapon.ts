@@ -4,23 +4,26 @@ import { Enemy } from '../entities/Enemy';
 import { Projectile } from './Projectile';
 import type { BasicSkillId, ClassId } from '../classes';
 import { BLOODTHIRST, bloodthirstHealing, EXECUTE, executeDamageMultiplier } from './BerserkerSkills';
-import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier } from './FrostMageSkills';
+import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier, isInBlizzard } from './FrostMageSkills';
 
 export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot';
+type Blizzard = { x:number; y:number; expiresAt:number; nextTick:number; effect:Phaser.GameObjects.Graphics; slowedEnemies:Set<Enemy> };
 
 export class Weapon {
   cooldown:number; range=92; duration=650; damageMultiplier=1; projectileSpeed=380;
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
   private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
+  private blizzards=new Set<Blizzard>();
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId,readonly basicSkillId:BasicSkillId){
-    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:2000;
+    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:basicSkillId==='blizzard'?FROST_MAGE_SKILLS.blizzard.cooldownMs:2000;
     this.effect=scene.add.circle(player.x,player.y,this.range,0xf08a24,.11).setStrokeStyle(4,0xffc247,.8).setDepth(4).setVisible(false);
     this.blades=scene.add.graphics().setDepth(6).setVisible(false);
     this.projectiles=scene.physics.add.group();
     scene.physics.add.overlap(this.projectiles,enemies,(object,target)=>this.projectileHit(object as Projectile,target as Enemy));
   }
   update(time:number){
+    this.updateBlizzards(time);
     if(this.player.silenced){this.drawWhirlwind(time,false);return;}
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
     if(this.basicSkillId==='whirlwind'&&!this.permanent&&time>=this.activeUntil&&time-this.lastCast>=this.effectiveCooldown)this.castWhirlwind(time);
@@ -44,7 +47,26 @@ export class Weapon {
     if(talent==='eternal')this.permanent=true;if(talent==='twin')this.twinStrike=true;if(talent==='blood')this.lifeSteal=true;if(talent==='fury')this.rageOnHit+=2;
     if(talent==='damage')this.damageMultiplier*=1.25;if(talent==='speed'){this.cooldown*=.82;this.projectileSpeed*=1.12;}if(talent==='control')this.control+=.18;if(talent==='multishot')this.multishot++;
   }
-  private rangedUpdate(time:number){if(time-this.lastCast<this.effectiveCooldown)return;const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;this.lastCast=time;for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
+  private rangedUpdate(time:number){if(time-this.lastCast<this.effectiveCooldown)return;const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;this.lastCast=time;if(this.basicSkillId==='blizzard'){this.castBlizzard(targets[0],time);return;}for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
+  private castBlizzard(target:Enemy,time:number){
+    const {radius,durationMs}=FROST_MAGE_SKILLS.blizzard,x=target.x,y=target.y,effect=this.scene.add.graphics().setDepth(2);
+    effect.fillStyle(0x65cfff,.16).fillCircle(x,y,radius).lineStyle(3,0xbfefff,.72).strokeCircle(x,y,radius);
+    for(let i=0;i<22;i++){const angle=i*2.4,distance=18+(i*37)%(radius-18),flakeX=x+Math.cos(angle)*distance,flakeY=y+Math.sin(angle)*distance;effect.fillStyle(i%3?0xd8f8ff:0x83ddff,.75).fillCircle(flakeX,flakeY,2+i%2);}
+    this.scene.tweens.add({targets:effect,alpha:.48,duration:420,yoyo:true,repeat:-1});
+    this.blizzards.add({x,y,expiresAt:time+durationMs,nextTick:time,effect,slowedEnemies:new Set()});
+  }
+  private updateBlizzards(time:number){
+    for(const storm of this.blizzards){
+      if(time>=storm.expiresAt){this.scene.tweens.killTweensOf(storm.effect);storm.effect.destroy();this.blizzards.delete(storm);continue;}
+      if(time<storm.nextTick)continue;storm.nextTick+=FROST_MAGE_SKILLS.blizzard.tickMs;
+      for(const enemy of this.enemies.getChildren() as Enemy[]){
+        if(!enemy.active||!isInBlizzard(storm.x,storm.y,enemy.x,enemy.y))continue;
+        enemy.hp-=this.player.calculateSpellDamage(this.damageMultiplier*FROST_MAGE_SKILLS.blizzard.damageMultiplier);this.player.dealtDamage(time);
+        if(!storm.slowedEnemies.has(enemy)){storm.slowedEnemies.add(enemy);enemy.speed=Math.max(28,enemy.speed*(1-FROST_MAGE_SKILLS.blizzard.slow-this.control));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
+        this.scene.events.emit('skill-hit',enemy);
+      }
+    }
+  }
   private fireAt(target:Enemy){
     const frost=this.classId==='frost-mage',orb=this.basicSkillId==='frozen-orb',lance=this.basicSkillId==='ice-lance';
     const texture=orb?'frozen-orb':lance?'ice-lance':frost?'frost':this.classId==='beast-hunter'?'beast':'flame';

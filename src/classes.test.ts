@@ -17,9 +17,9 @@ describe('基础输出技能配置', () => {
     expect(getBasicSkillDefinition('fire-mage', 'frostbolt')).toBeUndefined();
   });
 
-  it('冰霜法师列出寒冰箭、寒冰宝珠和冰枪术', () => {
+  it('冰霜法师列出寒冰箭、寒冰宝珠、冰枪术和冰风暴', () => {
     expect(getClassDefinition('frost-mage').basicSkills.map(skill => skill.id)).toEqual([
-      'frostbolt', 'frozen-orb', 'ice-lance',
+      'frostbolt', 'frozen-orb', 'ice-lance', 'blizzard',
     ]);
   });
 });

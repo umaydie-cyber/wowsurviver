@@ -1,5 +1,5 @@
 export type ClassId = 'berserker' | 'frost-mage' | 'fire-mage' | 'beast-hunter';
-export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'fireball' | 'kill-command';
+export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'blizzard' | 'fireball' | 'kill-command';
 
 export type BasicSkillDefinition = {
   id: BasicSkillId;
@@ -35,6 +35,7 @@ export const CLASSES: ClassDefinition[] = [
     { id: 'frostbolt', name: '寒冰箭', weapon: '霜语法杖', description: '发射寒冰箭攻击并减速最近的敌人。' },
     { id: 'frozen-orb', name: '寒冰宝珠', weapon: '凛冬法球', description: '射出缓慢移动的宝珠，对沿途怪物造成范围伤害并减速。' },
     { id: 'ice-lance', name: '冰枪术', weapon: '碎冰魔杖', description: '快速发射低伤害冰枪，对冻结目标造成 4 倍伤害。' },
+    { id: 'blizzard', name: '冰风暴', weapon: '暴雪法典', description: '长冷却范围法术，每秒造成微量伤害并施加寒冰箭减速。' },
   ] },
   { id: 'fire-mage', name: '火焰法师', skill: '火球术', fantasy: '引燃目标，让火球逐步爆裂成火海', color: 0xff7a35, basicSkills: [
     { id: 'fireball', name: '火球术', weapon: '炎心法杖', description: '向最近的敌人发射高伤害火球。' },
