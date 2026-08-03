@@ -16,6 +16,12 @@ describe('基础输出技能配置', () => {
   it('不会从错误职业解析基础技能', () => {
     expect(getBasicSkillDefinition('fire-mage', 'frostbolt')).toBeUndefined();
   });
+
+  it('冰霜法师列出寒冰箭、寒冰宝珠和冰枪术', () => {
+    expect(getClassDefinition('frost-mage').basicSkills.map(skill => skill.id)).toEqual([
+      'frostbolt', 'frozen-orb', 'ice-lance',
+    ]);
+  });
 });
 
 describe('技能槽与战士主动技能配置', () => {

@@ -4,6 +4,7 @@ import { Enemy } from '../entities/Enemy';
 import { Projectile } from './Projectile';
 import type { BasicSkillId, ClassId } from '../classes';
 import { BLOODTHIRST, bloodthirstHealing, EXECUTE, executeDamageMultiplier } from './BerserkerSkills';
+import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier } from './FrostMageSkills';
 
 export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot';
 
@@ -13,7 +14,7 @@ export class Weapon {
   private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId,readonly basicSkillId:BasicSkillId){
-    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:2000;
+    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:2000;
     this.effect=scene.add.circle(player.x,player.y,this.range,0xf08a24,.11).setStrokeStyle(4,0xffc247,.8).setDepth(4).setVisible(false);
     this.blades=scene.add.graphics().setDepth(6).setVisible(false);
     this.projectiles=scene.physics.add.group();
@@ -44,8 +45,22 @@ export class Weapon {
     if(talent==='damage')this.damageMultiplier*=1.25;if(talent==='speed'){this.cooldown*=.82;this.projectileSpeed*=1.12;}if(talent==='control')this.control+=.18;if(talent==='multishot')this.multishot++;
   }
   private rangedUpdate(time:number){if(time-this.lastCast<this.effectiveCooldown)return;const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;this.lastCast=time;for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
-  private fireAt(target:Enemy){const texture=this.classId==='frost-mage'?'frost':this.classId==='beast-hunter'?'beast':'flame';const base=this.classId==='beast-hunter'?1.35:1;const shot=new Projectile(this.scene,this.player.x,this.player.y,(this.classId==='fire-mage'||this.classId==='frost-mage'?this.player.calculateSpellDamage(this.damageMultiplier*base):this.player.calculateAttackDamage(this.damageMultiplier*base)),texture);shot.slow=this.classId==='frost-mage'?.25+this.control:0;this.projectiles.add(shot);this.scene.physics.moveToObject(shot,target,this.projectileSpeed);this.scene.time.delayedCall(1800,()=>shot.destroy());}
-  private projectileHit(shot:Projectile,enemy:Enemy){if(!shot.active||!enemy.active)return;enemy.hp-=shot.damage;this.player.dealtDamage();if(shot.slow){enemy.speed=Math.max(28,enemy.speed*(1-shot.slow));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&enemy.clearTint());}shot.destroy();this.scene.events.emit('skill-hit',enemy);}
+  private fireAt(target:Enemy){
+    const frost=this.classId==='frost-mage',orb=this.basicSkillId==='frozen-orb',lance=this.basicSkillId==='ice-lance';
+    const texture=orb?'frozen-orb':lance?'ice-lance':frost?'frost':this.classId==='beast-hunter'?'beast':'flame';
+    const base=this.classId==='beast-hunter'?1.35:orb?FROST_MAGE_SKILLS.frozenOrb.damageMultiplier:lance?iceLanceDamageMultiplier(target.isFrozen(this.scene.time.now)):1;
+    const shot=new Projectile(this.scene,this.player.x,this.player.y,(this.classId==='fire-mage'||frost?this.player.calculateSpellDamage(this.damageMultiplier*base):this.player.calculateAttackDamage(this.damageMultiplier*base)),texture);
+    shot.skill=orb?'frozen-orb':lance?'ice-lance':frost?'frostbolt':'standard';shot.slow=frost?(orb?FROST_MAGE_SKILLS.frozenOrb.slow:FROST_MAGE_SKILLS.frostbolt.slow)+this.control:0;
+    if(orb)shot.setCircle(FROST_MAGE_SKILLS.frozenOrb.radius).setScale(1.35);
+    this.projectiles.add(shot);this.scene.physics.moveToObject(shot,target,orb?FROST_MAGE_SKILLS.frozenOrb.speed:lance?FROST_MAGE_SKILLS.iceLance.speed:this.projectileSpeed);
+    this.scene.time.delayedCall(orb?FROST_MAGE_SKILLS.frozenOrb.lifetimeMs:1800,()=>shot.active&&shot.destroy());
+  }
+  private projectileHit(shot:Projectile,enemy:Enemy){
+    if(!shot.active||!enemy.active||shot.hitEnemies.has(enemy))return;shot.hitEnemies.add(enemy);enemy.hp-=shot.damage;this.player.dealtDamage();
+    if(shot.skill==='frostbolt'&&Math.random()<FROST_MAGE_SKILLS.frostbolt.freezeChance){enemy.freeze(this.scene.time.now+FROST_MAGE_SKILLS.frostbolt.freezeMs);this.scene.time.delayedCall(FROST_MAGE_SKILLS.frostbolt.freezeMs,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
+    else if(shot.slow){enemy.speed=Math.max(28,enemy.speed*(1-shot.slow));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
+    if(shot.skill!=='frozen-orb')shot.destroy();this.scene.events.emit('skill-hit',enemy);
+  }
   private get effectiveCooldown(){return this.cooldown/(1+Math.max(0,this.player.totalHaste)/100);}
   private castWhirlwind(time:number){this.lastCast=time;this.activeUntil=time+this.duration;this.hitEnemies.clear();this.castDamage=this.player.spendRage(50)?1.5:1;this.scene.cameras.main.shake(55,.002);}
   private updateMortalStrike(time:number){
