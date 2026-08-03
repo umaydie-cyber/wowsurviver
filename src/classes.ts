@@ -8,7 +8,7 @@ export type BasicSkillDefinition = {
   weapon: string;
 };
 
-export const SKILL_SLOT_LAYOUT = { passive: 4, movement: 1, burst: 1 } as const;
+export const SKILL_SLOT_LAYOUT = { passive: 6, movement: 1, burst: 1 } as const;
 export const WARRIOR_ACTIVE_SKILLS = {
   heroicLeap: { id: 'heroic-leap', name: '英勇跳跃', key: 'Space', cooldownMs: 15000, durationMs: 2000, speedBonus: .35, description: '向移动方向跳跃，并提高 35% 移动速度，持续 2 秒。' },
   shieldWall: { id: 'shield-wall', name: '盾墙', key: 'Q', cooldownMs: 30000, durationMs: 5000, damageReduction: .6, description: '降低所有受到的伤害 60%，持续 5 秒。' },

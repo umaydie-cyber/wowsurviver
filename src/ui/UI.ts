@@ -6,6 +6,8 @@ import { CLASSES, getBasicSkillDefinition, getClassDefinition, type BasicSkillId
 import { formatTime } from '../systems/progression';
 import type { UpgradeRewardType } from '../systems/upgradeRules';
 import { DIFFICULTIES, type DifficultyDefinition, type DifficultyId } from '../systems/difficulty';
+import { Weapon } from '../combat/Weapon';
+import { getSkillRankEffects } from '../systems/SkillLoadout';
 
 function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
@@ -87,12 +89,8 @@ export class GameUI {
   private shopOverlay?: HTMLElement;
   private bossMessage?: Phaser.GameObjects.Text;
   private acquiredTalents = new Map<string, { title: string; tag: string; description: string; count: number }>();
-  private equippedSkills: string[];
 
-  constructor(private scene: Phaser.Scene, private player: Player, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId) {
-    const initialSkill = getBasicSkillDefinition(classId, basicSkillId)!.name;
-    const initialSkills = [initialSkill];
-    this.equippedSkills = [...initialSkills, ...Array(Math.max(0, player.skillSlots.passive - initialSkills.length)).fill('')];
+  constructor(private scene: Phaser.Scene, private player: Player, private weapon: Weapon, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId) {
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -125,7 +123,7 @@ export class GameUI {
     this.level.setText(`等级 ${this.player.level}`);
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
-    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 4+1+1 · 拾取 +${this.player.pickupRange}`);
+    this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 6 · 拾取 +${this.player.pickupRange}`);
     this.timer.setText(`${this.difficulty.name} · ${formatTime(seconds)}`);
     this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
@@ -219,10 +217,9 @@ export class GameUI {
     };
     visibleItems.forEach((item, index) => cards.append(renderItem(item, index)));
     const slots = overlay.querySelector('.shop-skill-slots')!;
-    const equipped = this.equippedSkills;
     let draggedIndex = -1;
     const renderSlots = () => {
-      const passiveSlots = equipped.map((skill, index) => `<div class="shop-skill-slot${skill ? ' shop-skill-slot--filled' : ''}" draggable="${Boolean(skill)}" data-index="${index}"><span>P${index + 1}</span><strong>${skill || '空被动释放槽'}</strong><small>${skill ? '自动释放' : '被动释放'}</small></div>`).join('');
+      const passiveSlots = this.weapon.loadout.slots.map((slot, index) => { const skill = slot ? getBasicSkillDefinition(this.classId, slot.skillId)! : undefined; const effects = slot ? getSkillRankEffects(slot.rank) : undefined; return `<div class="shop-skill-slot${slot ? ' shop-skill-slot--filled' : ''} skill-rank-${slot?.rank ?? 0}" draggable="${Boolean(slot)}" data-index="${index}"><span>S${index + 1}${slot ? ` · ${slot.rank}级` : ''}</span><strong>${skill?.name || '空技能槽'}</strong><small>${effects ? `伤害 ×${effects.damageMultiplier.toFixed(2)} · 范围 ×${effects.rangeMultiplier.toFixed(2)} · 间隔 ×${effects.cooldownMultiplier.toFixed(2)}` : '拖入技能核心'}</small></div>`; }).join('');
       const movementUnlocked = this.player.heroicLeapUnlocked || this.player.iceSkatingUnlocked;
       const burstUnlocked = this.player.shieldWallUnlocked || this.player.icyVeinsUnlocked;
       const movement = this.player.iceSkatingUnlocked ? '滑冰术' : this.player.heroicLeapUnlocked ? '英勇跳跃' : '空位移技能槽';
@@ -233,7 +230,7 @@ export class GameUI {
         slot.addEventListener('dragend', () => slot.classList.remove('is-dragging'));
         slot.addEventListener('dragover', event => { event.preventDefault(); slot.classList.add('is-dragover'); });
         slot.addEventListener('dragleave', () => slot.classList.remove('is-dragover'));
-        slot.addEventListener('drop', event => { event.preventDefault(); const target = Number(slot.dataset.index); if (draggedIndex < 0 || draggedIndex === target) return; [equipped[draggedIndex], equipped[target]] = [equipped[target], equipped[draggedIndex]]; this.equippedSkills = equipped; draggedIndex = -1; renderSlots(); });
+        slot.addEventListener('drop', event => { event.preventDefault(); const target = Number(slot.dataset.index); if (draggedIndex < 0 || draggedIndex === target) return; this.weapon.loadout.moveOrMerge(draggedIndex, target); draggedIndex = -1; renderSlots(); });
       });
     };
     renderSlots();

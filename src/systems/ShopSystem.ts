@@ -1,6 +1,6 @@
 import { Player } from '../entities/Player';
 import { Weapon, type SkillTalent } from '../combat/Weapon';
-import { FROST_MAGE_ACTIVE_SKILLS, WARRIOR_ACTIVE_SKILLS } from '../classes';
+import { FROST_MAGE_ACTIVE_SKILLS, WARRIOR_ACTIVE_SKILLS, getBasicSkillDefinition } from '../classes';
 
 export type ShopItem = {
   id: string;
@@ -8,7 +8,7 @@ export type ShopItem = {
   tag: '技能' | '属性' | '生存';
   description: string;
   cost: number;
-  apply: () => void;
+  apply: () => boolean;
 };
 
 const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
@@ -57,13 +57,15 @@ export class ShopSystem {
   }
 
   private get availableSkillItems() {
-    return SKILL_ITEMS.filter(item => {
+    const currentSkill = getBasicSkillDefinition(this.player.classId, this.weapon.basicSkillId)!;
+    const skillCopy: Omit<ShopItem, 'apply'> = { id: `skill-copy-${currentSkill.id}`, title: `技能核心：${currentSkill.name}`, tag: '技能', description: `获得 1 个 1 级${currentSkill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 };
+    return [skillCopy, ...SKILL_ITEMS.filter(item => {
       if (item.id === 'heroic-leap') return this.player.classId === 'berserker' && !this.player.heroicLeapUnlocked;
       if (item.id === 'shield-wall') return this.player.classId === 'berserker' && !this.player.shieldWallUnlocked;
       if (item.id === 'ice-skating') return this.player.classId === 'frost-mage' && !this.player.iceSkatingUnlocked;
       if (item.id === 'icy-veins') return this.player.classId === 'frost-mage' && !this.player.icyVeinsUnlocked;
       return true;
-    });
+    })];
   }
 
   private toItem(definition: Omit<ShopItem, 'apply'>): ShopItem {
@@ -71,10 +73,11 @@ export class ShopSystem {
   }
 
   private apply(id: string) {
-    if (id === 'heroic-leap') { this.player.unlockHeroicLeap(); return; }
-    if (id === 'shield-wall') { this.player.unlockShieldWall(); return; }
-    if (id === 'ice-skating') { this.player.unlockIceSkating(); return; }
-    if (id === 'icy-veins') { this.player.unlockIcyVeins(); return; }
+    if (id.startsWith('skill-copy-')) return this.weapon.addSkillCopy(this.weapon.basicSkillId);
+    if (id === 'heroic-leap') { this.player.unlockHeroicLeap(); return true; }
+    if (id === 'shield-wall') { this.player.unlockShieldWall(); return true; }
+    if (id === 'ice-skating') { this.player.unlockIceSkating(); return true; }
+    if (id === 'icy-veins') { this.player.unlockIcyVeins(); return true; }
     const talentMap: Record<string, SkillTalent> = {
       'skill-damage': 'damage',
       'skill-speed': 'speed',
@@ -83,7 +86,7 @@ export class ShopSystem {
     };
     if (talentMap[id]) {
       this.weapon.applyTalent(talentMap[id]);
-      return;
+      return true;
     }
     if (id === 'stat-attack') this.player.attackPower += 8;
     if (id === 'stat-spell') this.player.spellPower += 8;
@@ -94,5 +97,6 @@ export class ShopSystem {
     if (id === 'pickup-magnet') this.player.pickupRange += 18;
     if (id === 'pickup-net') { this.player.pickupRange += 28; this.player.gainAzerite(3); }
     if (id === 'pickup-lens') { this.player.pickupRange += 16; this.player.xpRate += 5; }
+    return true;
   }
 }

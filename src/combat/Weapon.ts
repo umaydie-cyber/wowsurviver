@@ -4,24 +4,29 @@ import { Enemy } from '../entities/Enemy';
 import { Projectile } from './Projectile';
 import type { BasicSkillId, ClassId } from '../classes';
 import { BLOODTHIRST, bloodthirstHealing, EXECUTE, executeDamageMultiplier } from './BerserkerSkills';
-import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier, isInBlizzard } from './FrostMageSkills';
+import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier } from './FrostMageSkills';
+import { getSkillRankEffects, SkillLoadout } from '../systems/SkillLoadout';
 
 export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot';
-type Blizzard = { x:number; y:number; expiresAt:number; nextTick:number; effect:Phaser.GameObjects.Graphics; slowedEnemies:Set<Enemy> };
+type Blizzard = { x:number; y:number; radius:number; expiresAt:number; nextTick:number; effect:Phaser.GameObjects.Graphics; slowedEnemies:Set<Enemy> };
 
 export class Weapon {
+  readonly loadout: SkillLoadout;
   cooldown:number; range=92; duration=650; damageMultiplier=1; projectileSpeed=380;
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
   private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private blizzards=new Set<Blizzard>();
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId,readonly basicSkillId:BasicSkillId){
+    this.loadout=new SkillLoadout(classId,basicSkillId);
     this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:basicSkillId==='blizzard'?FROST_MAGE_SKILLS.blizzard.cooldownMs:2000;
     this.effect=scene.add.circle(player.x,player.y,this.range,0xf08a24,.11).setStrokeStyle(4,0xffc247,.8).setDepth(4).setVisible(false);
     this.blades=scene.add.graphics().setDepth(6).setVisible(false);
     this.projectiles=scene.physics.add.group();
     scene.physics.add.overlap(this.projectiles,enemies,(object,target)=>this.projectileHit(object as Projectile,target as Enemy));
   }
+  addSkillCopy(skillId:BasicSkillId){return this.loadout.add(skillId);}
+  private get rankEffects(){return getSkillRankEffects(this.loadout.primary?.rank??1);}
   update(time:number){
     this.updateBlizzards(time);
     if(this.player.silenced){this.drawWhirlwind(time,false);return;}
@@ -35,8 +40,8 @@ export class Weapon {
     if(this.permanent&&time>=this.nextPermanentTick){this.hitEnemies.clear();this.nextPermanentTick=time+650;}
     this.drawWhirlwind(time,active);if(!active)return;
     for(const enemy of this.enemies.getChildren() as Enemy[]){
-      if(!enemy.active||this.hitEnemies.has(enemy)||Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.range)continue;
-      this.hitEnemies.add(enemy);enemy.hp-=this.player.calculateAttackDamage(this.damageMultiplier*this.castDamage*(this.twinStrike?1.55:1));this.player.dealtDamage(time);this.player.gainRage(this.rageOnHit);
+      if(!enemy.active||this.hitEnemies.has(enemy)||Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.range*this.rankEffects.rangeMultiplier)continue;
+      this.hitEnemies.add(enemy);enemy.hp-=this.player.calculateAttackDamage(this.damageMultiplier*this.rankEffects.damageMultiplier*this.castDamage*(this.twinStrike?1.55:1));this.player.dealtDamage(time);this.player.gainRage(this.rageOnHit);
       if(this.lifeSteal&&enemy.hp<=0)this.player.heal(this.player.maxHp*.01);
       if(this.hitCooldownReduction&&this.hitEnemies.size%10===0)this.activeUntil+=this.hitCooldownReduction;
       this.scene.events.emit('skill-hit',enemy);
@@ -49,19 +54,19 @@ export class Weapon {
   }
   private rangedUpdate(time:number){if(time-this.lastCast<this.effectiveCooldown)return;const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;this.lastCast=time;if(this.basicSkillId==='blizzard'){this.castBlizzard(targets[0],time);return;}for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
   private castBlizzard(target:Enemy,time:number){
-    const {radius,durationMs}=FROST_MAGE_SKILLS.blizzard,x=target.x,y=target.y,effect=this.scene.add.graphics().setDepth(2);
+    const {durationMs}=FROST_MAGE_SKILLS.blizzard,radius=FROST_MAGE_SKILLS.blizzard.radius*this.rankEffects.rangeMultiplier,x=target.x,y=target.y,effect=this.scene.add.graphics().setDepth(2);
     effect.fillStyle(0x65cfff,.16).fillCircle(x,y,radius).lineStyle(3,0xbfefff,.72).strokeCircle(x,y,radius);
     for(let i=0;i<22;i++){const angle=i*2.4,distance=18+(i*37)%(radius-18),flakeX=x+Math.cos(angle)*distance,flakeY=y+Math.sin(angle)*distance;effect.fillStyle(i%3?0xd8f8ff:0x83ddff,.75).fillCircle(flakeX,flakeY,2+i%2);}
     this.scene.tweens.add({targets:effect,alpha:.48,duration:420,yoyo:true,repeat:-1});
-    this.blizzards.add({x,y,expiresAt:time+durationMs,nextTick:time,effect,slowedEnemies:new Set()});
+    this.blizzards.add({x,y,radius,expiresAt:time+durationMs,nextTick:time,effect,slowedEnemies:new Set()});
   }
   private updateBlizzards(time:number){
     for(const storm of this.blizzards){
       if(time>=storm.expiresAt){this.scene.tweens.killTweensOf(storm.effect);storm.effect.destroy();this.blizzards.delete(storm);continue;}
       if(time<storm.nextTick)continue;storm.nextTick+=FROST_MAGE_SKILLS.blizzard.tickMs;
       for(const enemy of this.enemies.getChildren() as Enemy[]){
-        if(!enemy.active||!isInBlizzard(storm.x,storm.y,enemy.x,enemy.y))continue;
-        enemy.hp-=this.player.calculateSpellDamage(this.damageMultiplier*FROST_MAGE_SKILLS.blizzard.damageMultiplier);this.player.dealtDamage(time);
+        if(!enemy.active||Phaser.Math.Distance.Between(storm.x,storm.y,enemy.x,enemy.y)>storm.radius)continue;
+        enemy.hp-=this.player.calculateSpellDamage(this.damageMultiplier*this.rankEffects.damageMultiplier*FROST_MAGE_SKILLS.blizzard.damageMultiplier);this.player.dealtDamage(time);
         if(!storm.slowedEnemies.has(enemy)){storm.slowedEnemies.add(enemy);enemy.speed=Math.max(28,enemy.speed*(1-FROST_MAGE_SKILLS.blizzard.slow-this.control));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
         this.scene.events.emit('skill-hit',enemy);
       }
@@ -71,9 +76,9 @@ export class Weapon {
     const frost=this.classId==='frost-mage',orb=this.basicSkillId==='frozen-orb',lance=this.basicSkillId==='ice-lance';
     const texture=orb?'frozen-orb':lance?'ice-lance':frost?'frost':this.classId==='beast-hunter'?'beast':'flame';
     const base=this.classId==='beast-hunter'?1.35:orb?FROST_MAGE_SKILLS.frozenOrb.damageMultiplier:lance?iceLanceDamageMultiplier(target.isFrozen(this.scene.time.now)):1;
-    const shot=new Projectile(this.scene,this.player.x,this.player.y,(this.classId==='fire-mage'||frost?this.player.calculateSpellDamage(this.damageMultiplier*base):this.player.calculateAttackDamage(this.damageMultiplier*base)),texture);
+    const shot=new Projectile(this.scene,this.player.x,this.player.y,(this.classId==='fire-mage'||frost?this.player.calculateSpellDamage(this.damageMultiplier*this.rankEffects.damageMultiplier*base):this.player.calculateAttackDamage(this.damageMultiplier*this.rankEffects.damageMultiplier*base)),texture);
     shot.skill=orb?'frozen-orb':lance?'ice-lance':frost?'frostbolt':'standard';shot.slow=frost?(orb?FROST_MAGE_SKILLS.frozenOrb.slow:FROST_MAGE_SKILLS.frostbolt.slow)+this.control:0;
-    if(orb)shot.setCircle(FROST_MAGE_SKILLS.frozenOrb.radius).setScale(1.35);
+    if(orb)shot.setCircle(FROST_MAGE_SKILLS.frozenOrb.radius*this.rankEffects.rangeMultiplier).setScale(1.35*this.rankEffects.rangeMultiplier);
     this.projectiles.add(shot);this.scene.physics.moveToObject(shot,target,orb?FROST_MAGE_SKILLS.frozenOrb.speed:lance?FROST_MAGE_SKILLS.iceLance.speed:this.projectileSpeed);
     this.scene.time.delayedCall(orb?FROST_MAGE_SKILLS.frozenOrb.lifetimeMs:1800,()=>shot.active&&shot.destroy());
   }
@@ -83,13 +88,13 @@ export class Weapon {
     else if(shot.slow){enemy.speed=Math.max(28,enemy.speed*(1-shot.slow));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
     if(shot.skill!=='frozen-orb')shot.destroy();this.scene.events.emit('skill-hit',enemy);
   }
-  private get effectiveCooldown(){return this.cooldown/(1+Math.max(0,this.player.totalHaste)/100);}
+  private get effectiveCooldown(){return this.cooldown*this.rankEffects.cooldownMultiplier/(1+Math.max(0,this.player.totalHaste)/100);}
   private castWhirlwind(time:number){this.lastCast=time;this.activeUntil=time+this.duration;this.hitEnemies.clear();this.castDamage=this.player.spendRage(50)?1.5:1;this.scene.cameras.main.shake(55,.002);}
   private updateMortalStrike(time:number){
-    if(time-this.lastMortalStrike<4500/(1+Math.max(0,this.player.totalHaste)/100))return;
-    const target=(this.enemies.getChildren() as Enemy[]).filter(enemy=>enemy.active&&enemy.hp>0&&Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<=145).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
+    if(time-this.lastMortalStrike<4500*this.rankEffects.cooldownMultiplier/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=(this.enemies.getChildren() as Enemy[]).filter(enemy=>enemy.active&&enemy.hp>0&&Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<=145*this.rankEffects.rangeMultiplier).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
     if(!target)return;
-    this.lastMortalStrike=time;target.hp-=this.player.calculateAttackDamage(2.8*this.damageMultiplier);target.blockHealing(time+5000);this.player.dealtDamage(time);this.player.gainRage(8);
+    this.lastMortalStrike=time;target.hp-=this.player.calculateAttackDamage(2.8*this.damageMultiplier*this.rankEffects.damageMultiplier);target.blockHealing(time+5000);this.player.dealtDamage(time);this.player.gainRage(8);
     const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y),slash=this.scene.add.graphics().setDepth(7);
     slash.lineStyle(12,0xe8e8e8,.95).lineBetween(this.player.x+Math.cos(angle)*22,this.player.y+Math.sin(angle)*22,target.x,target.y);
     slash.lineStyle(4,0xb51f2e,1).lineBetween(this.player.x+Math.cos(angle)*28,this.player.y+Math.sin(angle)*28,target.x+Math.cos(angle)*8,target.y+Math.sin(angle)*8);
@@ -102,17 +107,17 @@ export class Weapon {
     return (this.enemies.getChildren() as Enemy[]).filter(enemy=>enemy.active&&enemy.hp>0&&Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<=range).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
   }
   private updateBloodthirst(time:number){
-    if(time-this.lastBloodthirst<BLOODTHIRST.cooldownMs/(1+Math.max(0,this.player.totalHaste)/100))return;
-    const target=this.nearestTargetInRange(BLOODTHIRST.range);if(!target)return;
-    this.lastBloodthirst=time;target.hp-=this.player.calculateAttackDamage(BLOODTHIRST.damageMultiplier*this.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(6);
+    if(time-this.lastBloodthirst<BLOODTHIRST.cooldownMs*this.rankEffects.cooldownMultiplier/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=this.nearestTargetInRange(BLOODTHIRST.range*this.rankEffects.rangeMultiplier);if(!target)return;
+    this.lastBloodthirst=time;target.hp-=this.player.calculateAttackDamage(BLOODTHIRST.damageMultiplier*this.damageMultiplier*this.rankEffects.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(6);
     const healing=bloodthirstHealing(this.player.maxHp,Math.random());if(healing)this.player.heal(healing);
     this.drawMeleeStrike(target,0xff4055,'嗜血',healing?`恢复 ${Math.ceil(healing)}`:undefined);this.scene.events.emit('skill-hit',target);
   }
   private updateExecute(time:number){
-    if(time-this.lastExecute<EXECUTE.cooldownMs/(1+Math.max(0,this.player.totalHaste)/100))return;
-    const target=this.nearestTargetInRange(EXECUTE.range);if(!target)return;
+    if(time-this.lastExecute<EXECUTE.cooldownMs*this.rankEffects.cooldownMultiplier/(1+Math.max(0,this.player.totalHaste)/100))return;
+    const target=this.nearestTargetInRange(EXECUTE.range*this.rankEffects.rangeMultiplier);if(!target)return;
     const empowered=target.hp/target.maxHp<=EXECUTE.healthThreshold;
-    this.lastExecute=time;target.hp-=this.player.calculateAttackDamage(executeDamageMultiplier(target.hp,target.maxHp)*this.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(5);
+    this.lastExecute=time;target.hp-=this.player.calculateAttackDamage(executeDamageMultiplier(target.hp,target.maxHp)*this.damageMultiplier*this.rankEffects.damageMultiplier);this.player.dealtDamage(time);this.player.gainRage(5);
     this.drawMeleeStrike(target,empowered?0xffd24a:0xbcc8d8,empowered?'斩杀！':'斩杀');this.scene.events.emit('skill-hit',target);
   }
   private drawMeleeStrike(target:Enemy,color:number,label:string,subLabel?:string){
@@ -122,5 +127,5 @@ export class Weapon {
     const text=this.scene.add.text(target.x,target.y-30,subLabel?`${label} · ${subLabel}`:label,{fontSize:'13px',fontStyle:'bold',color:'#fff3c4',stroke:'#321016',strokeThickness:3}).setOrigin(.5).setDepth(8);
     this.scene.tweens.add({targets:text,y:text.y-18,alpha:0,duration:650,onComplete:()=>text.destroy()});this.scene.cameras.main.shake(75,.003);
   }
-  private drawWhirlwind(time:number,active:boolean){this.effect.setPosition(this.player.x,this.player.y).setRadius(this.range).setVisible(active);this.blades.clear().setVisible(active);if(!active)return;const count=this.twinStrike?4:2;this.blades.lineStyle(8,0xe7edf4,.9);for(let i=0;i<count;i++){const angle=time*.012+i*Math.PI*2/count;this.blades.lineBetween(this.player.x+Math.cos(angle)*this.range*.25,this.player.y+Math.sin(angle)*this.range*.25,this.player.x+Math.cos(angle)*this.range*.88,this.player.y+Math.sin(angle)*this.range*.88);}}
+  private drawWhirlwind(time:number,active:boolean){this.effect.setPosition(this.player.x,this.player.y).setRadius(this.range*this.rankEffects.rangeMultiplier).setVisible(active);this.blades.clear().setVisible(active);if(!active)return;const count=this.twinStrike?4:2;this.blades.lineStyle(8,0xe7edf4,.9);for(let i=0;i<count;i++){const angle=time*.012+i*Math.PI*2/count;this.blades.lineBetween(this.player.x+Math.cos(angle)*this.range*this.rankEffects.rangeMultiplier*.25,this.player.y+Math.sin(angle)*this.range*this.rankEffects.rangeMultiplier*.25,this.player.x+Math.cos(angle)*this.range*this.rankEffects.rangeMultiplier*.88,this.player.y+Math.sin(angle)*this.range*this.rankEffects.rangeMultiplier*.88);}}
 }

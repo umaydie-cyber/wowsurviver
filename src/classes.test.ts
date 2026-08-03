@@ -25,8 +25,8 @@ describe('基础输出技能配置', () => {
 });
 
 describe('技能槽与战士主动技能配置', () => {
-  it('使用 4 被动释放、1 位移和 1 爆发技能槽', () => {
-    expect(SKILL_SLOT_LAYOUT).toEqual({ passive: 4, movement: 1, burst: 1 });
+  it('使用 6 个自动释放槽、1 位移和 1 爆发技能槽', () => {
+    expect(SKILL_SLOT_LAYOUT).toEqual({ passive: 6, movement: 1, burst: 1 });
   });
   it('英勇跳跃与盾墙使用指定按键和冷却', () => {
     expect(WARRIOR_ACTIVE_SKILLS.heroicLeap).toMatchObject({ key: 'Space', cooldownMs: 15000, durationMs: 2000 });
