@@ -10,6 +10,17 @@ describe('pickEnemyKindForWave', () => {
     expect(pickEnemyKindForWave(5, 0.179)).toBe('fireFistOgre');
     expect(pickEnemyKindForWave(5, 0.18)).toBe('murlocShaman');
   });
+
+  it.each([
+    [10, 'zhevraCharger'], [12, 'sunscaleScytheclaw'], [14, 'windfuryHarpy'],
+    [16, 'kolkarWarcaller'], [18, 'razormaneGeomancer'], [20, 'thunderLizard'],
+  ])('introduces a new Barrens enemy at wave %i', (wave, kind) => {
+    expect(pickEnemyKindForWave(wave - 1, 0.47)).toBe(kind);
+  });
+
+  it('does not introduce the zhevra before wave 10', () => {
+    expect(pickEnemyKindForWave(8, 0.47)).not.toBe('zhevraCharger');
+  });
 });
 
 describe('boss wave rules', () => {
