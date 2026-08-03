@@ -8,6 +8,7 @@ import type { UpgradeRewardType } from '../systems/upgradeRules';
 import { DIFFICULTIES, type DifficultyDefinition, type DifficultyId } from '../systems/difficulty';
 import { Weapon } from '../combat/Weapon';
 import { getSkillRankEffects } from '../systems/SkillLoadout';
+import { MAPS, type MapId } from '../maps';
 
 function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
@@ -26,23 +27,31 @@ function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' 
   return { overlay, cards };
 }
 
-export type StartSelection = { difficultyId: DifficultyId; classId: ClassId; basicSkillId: BasicSkillId };
+export type StartSelection = { mapId: MapId; difficultyId: DifficultyId; classId: ClassId; basicSkillId: BasicSkillId };
 
 export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartSelection) => void) {
-  const { overlay } = createChoiceOverlay('start', '准备踏入战场', '同时选择难度、职业与该职业可用的基础输出技能');
+  const { overlay } = createChoiceOverlay('start', '准备踏入战场', '选择地图、难度、职业与该职业可用的基础输出技能');
   const form = document.createElement('div');
   form.className = 'start-builder';
   overlay.querySelector('.choice-overlay__cards')!.replaceWith(form);
   let difficultyId: DifficultyId = 3;
+  let mapId: MapId = 'barrens';
   let classId: ClassId = CLASSES[0].id;
   let basicSkillId: BasicSkillId = CLASSES[0].basicSkills[0].id;
   let submitted = false;
   const section = (title: string) => { const element = document.createElement('section'); element.className = 'start-builder__section'; element.innerHTML = `<h2>${title}</h2>`; form.append(element); return element; };
-  const difficultySection = section('1 · 难度');
+  const mapSection = section('1 · 地图');
+  const mapPicker = document.createElement('div'); mapPicker.className = 'map-picker'; mapSection.append(mapPicker);
+  const mapTrigger = document.createElement('button'); mapTrigger.type = 'button'; mapTrigger.className = 'map-picker__trigger'; mapPicker.append(mapTrigger);
+  const mapList = document.createElement('div'); mapList.className = 'map-picker__list'; mapList.hidden = true; mapPicker.append(mapList);
+  const renderMapTrigger = () => { const map = MAPS.find(candidate => candidate.id === mapId)!; mapTrigger.innerHTML = `<span>当前地图</span><strong>${map.name}</strong><small>${map.region} · 点击打开地图列表</small><b>▾</b>`; };
+  MAPS.forEach(map => { const button = document.createElement('button'); button.type = 'button'; button.className = `map-picker__option${map.id === mapId ? ' is-selected' : ''}`; button.style.setProperty('--card-color', map.color); button.innerHTML = `<strong>${map.name}</strong><span>${map.region}</span><small>${map.description}</small>`; button.addEventListener('click', () => { mapId = map.id; mapList.hidden = true; mapList.querySelectorAll('button').forEach(item => item.classList.toggle('is-selected', item === button)); renderMapTrigger(); }); mapList.append(button); });
+  mapTrigger.addEventListener('click', () => { mapList.hidden = !mapList.hidden; mapTrigger.setAttribute('aria-expanded', String(!mapList.hidden)); }); renderMapTrigger();
+  const difficultySection = section('2 · 难度');
   const difficultyChoices = document.createElement('div'); difficultyChoices.className = 'start-builder__choices start-builder__choices--difficulty'; difficultySection.append(difficultyChoices);
-  const classSection = section('2 · 职业');
+  const classSection = section('3 · 职业');
   const classChoices = document.createElement('div'); classChoices.className = 'start-builder__choices'; classSection.append(classChoices);
-  const skillSection = section('3 · 初始武器与基础输出技能');
+  const skillSection = section('4 · 初始武器与基础输出技能');
   const skillChoices = document.createElement('div'); skillChoices.className = 'start-builder__skills'; skillSection.append(skillChoices);
   const startButton = document.createElement('button'); startButton.type = 'button'; startButton.className = 'start-builder__submit'; startButton.textContent = '开始战斗'; form.append(startButton);
 
@@ -72,7 +81,7 @@ export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartS
     classChoices.append(card);
   });
   renderSkills();
-  startButton.addEventListener('click', () => { if (submitted) return; submitted = true; startButton.disabled = true; overlay.remove(); pick({ difficultyId, classId, basicSkillId }); });
+  startButton.addEventListener('click', () => { if (submitted) return; submitted = true; startButton.disabled = true; overlay.remove(); pick({ mapId, difficultyId, classId, basicSkillId }); });
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.remove());
 }
 
@@ -90,7 +99,7 @@ export class GameUI {
   private bossMessage?: Phaser.GameObjects.Text;
   private acquiredTalents = new Map<string, { title: string; tag: string; description: string; count: number }>();
 
-  constructor(private scene: Phaser.Scene, private player: Player, private weapon: Weapon, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId) {
+  constructor(private scene: Phaser.Scene, private player: Player, private weapon: Weapon, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId, private mapId: MapId) {
     this.create();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
   }
@@ -124,7 +133,7 @@ export class GameUI {
     this.rage.setText(`怒气 ${Math.floor(this.player.rage)} / ${this.player.maxRage}`);
     this.focus.setText(this.player.combatFocusActive ? `战斗专注 急速 +${Math.floor(this.player.combatFocusHasteBonus)}%` : '战斗专注 未激活');
     this.azerite.setText(`艾泽里特 ${this.player.azerite} · 技能栏 6 · 拾取 +${this.player.pickupRange}`);
-    this.timer.setText(`${this.difficulty.name} · ${formatTime(seconds)}`);
+    this.timer.setText(`${MAPS.find(map => map.id === this.mapId)!.name} · ${this.difficulty.name} · ${formatTime(seconds)}`);
     this.xpFill.width = Math.max(1, this.xpTrackWidth * this.player.xp / this.player.xpNeeded);
   }
 
