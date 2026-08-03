@@ -57,9 +57,13 @@ export class ShopSystem {
   }
 
   private get availableSkillItems() {
-    const currentSkill = getBasicSkillDefinition(this.player.classId, this.weapon.basicSkillId)!;
-    const skillCopy: Omit<ShopItem, 'apply'> = { id: `skill-copy-${currentSkill.id}`, title: `技能核心：${currentSkill.name}`, tag: '技能', description: `获得 1 个 1 级${currentSkill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 };
-    return [skillCopy, ...SKILL_ITEMS.filter(item => {
+    const skillCopies: Omit<ShopItem, 'apply'>[] = this.player.classId === 'berserker'
+      ? ['whirlwind', 'mortal-strike', 'bloodthirst', 'execute'].map(skillId => {
+        const skill = getBasicSkillDefinition(this.player.classId, skillId as Parameters<typeof getBasicSkillDefinition>[1])!;
+        return { id: `skill-copy-${skill.id}`, title: `技能核心：${skill.name}`, tag: '技能', description: `获得 1 个 1 级${skill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 };
+      })
+      : (() => { const skill = getBasicSkillDefinition(this.player.classId, this.weapon.basicSkillId)!; return [{ id: `skill-copy-${skill.id}`, title: `技能核心：${skill.name}`, tag: '技能' as const, description: `获得 1 个 1 级${skill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 }]; })();
+    return [...skillCopies, ...SKILL_ITEMS.filter(item => {
       if (item.id === 'heroic-leap') return this.player.classId === 'berserker' && !this.player.heroicLeapUnlocked;
       if (item.id === 'shield-wall') return this.player.classId === 'berserker' && !this.player.shieldWallUnlocked;
       if (item.id === 'ice-skating') return this.player.classId === 'frost-mage' && !this.player.iceSkatingUnlocked;
@@ -73,7 +77,7 @@ export class ShopSystem {
   }
 
   private apply(id: string) {
-    if (id.startsWith('skill-copy-')) return this.weapon.addSkillCopy(this.weapon.basicSkillId);
+    if (id.startsWith('skill-copy-')) return this.weapon.addSkillCopy(id.slice('skill-copy-'.length) as Parameters<Weapon['addSkillCopy']>[0]);
     if (id === 'heroic-leap') { this.player.unlockHeroicLeap(); return true; }
     if (id === 'shield-wall') { this.player.unlockShieldWall(); return true; }
     if (id === 'ice-skating') { this.player.unlockIceSkating(); return true; }
