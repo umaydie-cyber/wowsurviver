@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, getBasicSkillDefinition, getClassDefinition, SKILL_SLOT_LAYOUT, WARRIOR_ACTIVE_SKILLS } from './classes';
+import { CLASSES, FROST_MAGE_ACTIVE_SKILLS, getBasicSkillDefinition, getClassDefinition, SKILL_SLOT_LAYOUT, WARRIOR_ACTIVE_SKILLS } from './classes';
 
 describe('基础输出技能配置', () => {
   it('每个职业都至少提供一个可选初始武器', () => {
@@ -31,5 +31,9 @@ describe('技能槽与战士主动技能配置', () => {
   it('英勇跳跃与盾墙使用指定按键和冷却', () => {
     expect(WARRIOR_ACTIVE_SKILLS.heroicLeap).toMatchObject({ key: 'Space', cooldownMs: 15000, durationMs: 2000 });
     expect(WARRIOR_ACTIVE_SKILLS.shieldWall).toMatchObject({ key: 'Q', cooldownMs: 30000, durationMs: 5000, damageReduction: .6 });
+  });
+  it('滑冰术提供十倍滑行速度，寒冰血脉强化急速与伤害 10 秒', () => {
+    expect(FROST_MAGE_ACTIVE_SKILLS.iceSkating).toMatchObject({ key: 'Space', speedMultiplier: 10 });
+    expect(FROST_MAGE_ACTIVE_SKILLS.icyVeins).toMatchObject({ key: 'Q', durationMs: 10000, hasteBonus: 30, damageBonus: .2 });
   });
 });

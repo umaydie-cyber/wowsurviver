@@ -223,9 +223,11 @@ export class GameUI {
     let draggedIndex = -1;
     const renderSlots = () => {
       const passiveSlots = equipped.map((skill, index) => `<div class="shop-skill-slot${skill ? ' shop-skill-slot--filled' : ''}" draggable="${Boolean(skill)}" data-index="${index}"><span>P${index + 1}</span><strong>${skill || '空被动释放槽'}</strong><small>${skill ? '自动释放' : '被动释放'}</small></div>`).join('');
-      const movement = this.player.heroicLeapUnlocked ? '英勇跳跃' : '空位移技能槽';
-      const burst = this.player.shieldWallUnlocked ? '盾墙' : '空爆发技能槽';
-      slots.innerHTML = `${passiveSlots}<div class="shop-skill-slot${this.player.heroicLeapUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Space</span><strong>${movement}</strong><small>位移技能</small></div><div class="shop-skill-slot${this.player.shieldWallUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Q</span><strong>${burst}</strong><small>爆发技能</small></div>`;
+      const movementUnlocked = this.player.heroicLeapUnlocked || this.player.iceSkatingUnlocked;
+      const burstUnlocked = this.player.shieldWallUnlocked || this.player.icyVeinsUnlocked;
+      const movement = this.player.iceSkatingUnlocked ? '滑冰术' : this.player.heroicLeapUnlocked ? '英勇跳跃' : '空位移技能槽';
+      const burst = this.player.icyVeinsUnlocked ? '寒冰血脉' : this.player.shieldWallUnlocked ? '盾墙' : '空爆发技能槽';
+      slots.innerHTML = `${passiveSlots}<div class="shop-skill-slot${movementUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Space</span><strong>${movement}</strong><small>位移技能</small></div><div class="shop-skill-slot${burstUnlocked ? ' shop-skill-slot--filled' : ''}"><span>Q</span><strong>${burst}</strong><small>爆发技能</small></div>`;
       slots.querySelectorAll<HTMLElement>('.shop-skill-slot').forEach(slot => {
         slot.addEventListener('dragstart', () => { draggedIndex = Number(slot.dataset.index); slot.classList.add('is-dragging'); });
         slot.addEventListener('dragend', () => slot.classList.remove('is-dragging'));

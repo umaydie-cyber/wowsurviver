@@ -13,6 +13,10 @@ export const WARRIOR_ACTIVE_SKILLS = {
   heroicLeap: { id: 'heroic-leap', name: '英勇跳跃', key: 'Space', cooldownMs: 15000, durationMs: 2000, speedBonus: .35, description: '向移动方向跳跃，并提高 35% 移动速度，持续 2 秒。' },
   shieldWall: { id: 'shield-wall', name: '盾墙', key: 'Q', cooldownMs: 30000, durationMs: 5000, damageReduction: .6, description: '降低所有受到的伤害 60%，持续 5 秒。' },
 } as const;
+export const FROST_MAGE_ACTIVE_SKILLS = {
+  iceSkating: { id: 'ice-skating', name: '滑冰术', key: 'Space', cooldownMs: 12000, durationMs: 180, speedMultiplier: 10, description: '向当前移动方向以 1000% 速度滑行，结束后获得可抵挡一次伤害的免疫护甲。' },
+  icyVeins: { id: 'icy-veins', name: '寒冰血脉', key: 'Q', cooldownMs: 60000, durationMs: 10000, hasteBonus: 30, damageBonus: .2, description: '所有技能释放速度提高 30%、伤害提高 20%，持续 10 秒。' },
+} as const;
 
 export type ClassDefinition = {
   id: ClassId;

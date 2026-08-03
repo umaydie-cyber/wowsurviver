@@ -1,6 +1,6 @@
 import { Player } from '../entities/Player';
 import { Weapon, type SkillTalent } from '../combat/Weapon';
-import { WARRIOR_ACTIVE_SKILLS } from '../classes';
+import { FROST_MAGE_ACTIVE_SKILLS, WARRIOR_ACTIVE_SKILLS } from '../classes';
 
 export type ShopItem = {
   id: string;
@@ -14,6 +14,8 @@ export type ShopItem = {
 const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
   { id: 'heroic-leap', title: `位移技能：${WARRIOR_ACTIVE_SKILLS.heroicLeap.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.heroicLeap.description}按空格使用，冷却 15 秒。`, cost: 48 },
   { id: 'shield-wall', title: `爆发技能：${WARRIOR_ACTIVE_SKILLS.shieldWall.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.shieldWall.description}按 Q 使用，冷却 30 秒。`, cost: 52 },
+  { id: 'ice-skating', title: `位移技能：${FROST_MAGE_ACTIVE_SKILLS.iceSkating.name}`, tag: '技能', description: `${FROST_MAGE_ACTIVE_SKILLS.iceSkating.description}按空格使用，冷却 12 秒。`, cost: 48 },
+  { id: 'icy-veins', title: `爆发技能：${FROST_MAGE_ACTIVE_SKILLS.icyVeins.name}`, tag: '技能', description: `${FROST_MAGE_ACTIVE_SKILLS.icyVeins.description}按 Q 使用，冷却 60 秒。`, cost: 52 },
   { id: 'skill-damage', title: '技能强化：锋刃校准', tag: '技能', description: '当前自动技能伤害 +25%。同名强化不占用技能栏。', cost: 40 },
   { id: 'skill-speed', title: '技能强化：急速符文', tag: '技能', description: '当前自动技能冷却缩短，并小幅提高投射物速度。', cost: 44 },
   { id: 'skill-multishot', title: '技能：副手协同', tag: '技能', description: '远程职业额外发射 1 枚弹体；近战职业获得额外怒气效率。', cost: 52 },
@@ -58,6 +60,8 @@ export class ShopSystem {
     return SKILL_ITEMS.filter(item => {
       if (item.id === 'heroic-leap') return this.player.classId === 'berserker' && !this.player.heroicLeapUnlocked;
       if (item.id === 'shield-wall') return this.player.classId === 'berserker' && !this.player.shieldWallUnlocked;
+      if (item.id === 'ice-skating') return this.player.classId === 'frost-mage' && !this.player.iceSkatingUnlocked;
+      if (item.id === 'icy-veins') return this.player.classId === 'frost-mage' && !this.player.icyVeinsUnlocked;
       return true;
     });
   }
@@ -69,6 +73,8 @@ export class ShopSystem {
   private apply(id: string) {
     if (id === 'heroic-leap') { this.player.unlockHeroicLeap(); return; }
     if (id === 'shield-wall') { this.player.unlockShieldWall(); return; }
+    if (id === 'ice-skating') { this.player.unlockIceSkating(); return; }
+    if (id === 'icy-veins') { this.player.unlockIcyVeins(); return; }
     const talentMap: Record<string, SkillTalent> = {
       'skill-damage': 'damage',
       'skill-speed': 'speed',
