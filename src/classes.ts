@@ -1,5 +1,5 @@
 export type ClassId = 'berserker' | 'frost-mage' | 'fire-mage' | 'beast-hunter';
-export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'fireball' | 'kill-command';
+export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'blizzard' | 'fireball' | 'kill-command';
 
 export type BasicSkillDefinition = {
   id: BasicSkillId;
@@ -12,6 +12,10 @@ export const SKILL_SLOT_LAYOUT = { passive: 4, movement: 1, burst: 1 } as const;
 export const WARRIOR_ACTIVE_SKILLS = {
   heroicLeap: { id: 'heroic-leap', name: '英勇跳跃', key: 'Space', cooldownMs: 15000, durationMs: 2000, speedBonus: .35, description: '向移动方向跳跃，并提高 35% 移动速度，持续 2 秒。' },
   shieldWall: { id: 'shield-wall', name: '盾墙', key: 'Q', cooldownMs: 30000, durationMs: 5000, damageReduction: .6, description: '降低所有受到的伤害 60%，持续 5 秒。' },
+} as const;
+export const FROST_MAGE_ACTIVE_SKILLS = {
+  iceSkating: { id: 'ice-skating', name: '滑冰术', key: 'Space', cooldownMs: 12000, durationMs: 180, speedMultiplier: 10, description: '向当前移动方向以 1000% 速度滑行，结束后获得可抵挡一次伤害的免疫护甲。' },
+  icyVeins: { id: 'icy-veins', name: '寒冰血脉', key: 'Q', cooldownMs: 60000, durationMs: 10000, hasteBonus: 30, damageBonus: .2, description: '所有技能释放速度提高 30%、伤害提高 20%，持续 10 秒。' },
 } as const;
 
 export type ClassDefinition = {
@@ -35,6 +39,7 @@ export const CLASSES: ClassDefinition[] = [
     { id: 'frostbolt', name: '寒冰箭', weapon: '霜语法杖', description: '发射寒冰箭攻击并减速最近的敌人。' },
     { id: 'frozen-orb', name: '寒冰宝珠', weapon: '凛冬法球', description: '射出缓慢移动的宝珠，对沿途怪物造成范围伤害并减速。' },
     { id: 'ice-lance', name: '冰枪术', weapon: '碎冰魔杖', description: '快速发射低伤害冰枪，对冻结目标造成 4 倍伤害。' },
+    { id: 'blizzard', name: '冰风暴', weapon: '暴雪法典', description: '长冷却范围法术，每秒造成微量伤害并施加寒冰箭减速。' },
   ] },
   { id: 'fire-mage', name: '火焰法师', skill: '火球术', fantasy: '引燃目标，让火球逐步爆裂成火海', color: 0xff7a35, basicSkills: [
     { id: 'fireball', name: '火球术', weapon: '炎心法杖', description: '向最近的敌人发射高伤害火球。' },
