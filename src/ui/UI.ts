@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
-import type { Upgrade } from '../systems/LevelSystem';
-import type { ShopItem } from '../systems/ShopSystem';
+import { getClassTalents, type Upgrade } from '../systems/LevelSystem';
+import { SHOP_SKILL_ITEMS, SHOP_UTILITY_ITEMS, type ShopItem } from '../systems/ShopSystem';
 import { CLASSES, getBasicSkillDefinition, getClassDefinition, type BasicSkillId, type ClassId } from '../classes';
 import { formatTime } from '../systems/progression';
 import type { UpgradeRewardType } from '../systems/upgradeRules';
@@ -39,6 +39,7 @@ export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartS
   let classId: ClassId = CLASSES[0].id;
   let basicSkillId: BasicSkillId = CLASSES[0].basicSkills[0].id;
   let submitted = false;
+  const codexButton = document.createElement('button'); codexButton.type = 'button'; codexButton.className = 'start-codex-button'; codexButton.innerHTML = '<span>✦</span> 冒险图鉴'; overlay.append(codexButton);
   const section = (title: string) => { const element = document.createElement('section'); element.className = 'start-builder__section'; element.innerHTML = `<h2>${title}</h2>`; form.append(element); return element; };
   const mapSection = section('1 · 地图');
   const mapPicker = document.createElement('div'); mapPicker.className = 'map-picker'; mapSection.append(mapPicker);
@@ -54,6 +55,32 @@ export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartS
   const skillSection = section('4 · 初始武器与基础输出技能');
   const skillChoices = document.createElement('div'); skillChoices.className = 'start-builder__skills'; skillSection.append(skillChoices);
   const startButton = document.createElement('button'); startButton.type = 'button'; startButton.className = 'start-builder__submit'; startButton.textContent = '开始战斗'; form.append(startButton);
+
+  const showCodex = () => {
+    const codex = document.createElement('section'); codex.className = 'codex'; codex.setAttribute('role', 'dialog'); codex.setAttribute('aria-modal', 'true'); codex.setAttribute('aria-label', '冒险图鉴');
+    codex.innerHTML = `<div class="codex__panel"><header><div><span>冒险准备</span><h2>冒险图鉴</h2><p>以当前所选职业判定商店内容是否解锁；五倍等级天赋展示所有职业的完整选项。</p></div><button type="button" class="codex__close" aria-label="关闭图鉴">×</button></header><nav class="codex__tabs" aria-label="图鉴分类"></nav><div class="codex__content"></div></div>`;
+    overlay.append(codex);
+    const content = codex.querySelector('.codex__content')!;
+    const tabs = codex.querySelector('.codex__tabs')!;
+    const activeSkillIds: Partial<Record<ClassId, string[]>> = { berserker: ['heroic-leap', 'shield-wall'], 'frost-mage': ['ice-skating', 'icy-veins'] };
+    const allShopEntries = [
+      ...CLASSES.flatMap(owner => owner.basicSkills.map(skill => ({ id: `skill-copy-${skill.id}`, title: `技能核心：${skill.name}`, tag: '技能', description: `${owner.name}的 1 级${skill.name}核心，可通过同技能同等级核心合成。`, cost: 38, owner: owner.id }))),
+      ...SHOP_SKILL_ITEMS.map(item => ({ ...item, owner: (Object.entries(activeSkillIds).find(([, ids]) => ids.includes(item.id))?.[0] as ClassId | undefined) })),
+      ...SHOP_UTILITY_ITEMS.map(item => ({ ...item, owner: undefined })),
+    ];
+    const isUnlocked = (item: typeof allShopEntries[number]) => !item.owner || (item.owner === classId && (!item.id.startsWith('skill-copy-') || classId === 'berserker' || item.id === `skill-copy-${basicSkillId}`));
+    const unlocked = allShopEntries.filter(isUnlocked);
+    const locked = allShopEntries.filter(item => !isUnlocked(item));
+    const renderShop = (items: typeof allShopEntries, isLocked: boolean) => {
+      content.innerHTML = `<div class="codex__summary"><strong>${isLocked ? '未解锁' : '目前解锁'} ${items.length} 项</strong><span>${isLocked ? '切换对应职业或初始技能即可解锁' : `${getClassDefinition(classId).name}当前可获得`}</span></div><div class="codex__grid">${items.map(item => `<article class="codex-card${isLocked ? ' codex-card--locked' : ''}"><div><span>${item.tag}</span><b>${item.cost} 艾泽里特</b></div><h3>${item.title}</h3><p>${item.description}</p>${item.owner ? `<small>${getClassDefinition(item.owner).name}专属</small>` : '<small>全职业通用</small>'}</article>`).join('')}</div>`;
+    };
+    const renderTalents = () => { content.innerHTML = `<div class="codex__talents">${CLASSES.map(owner => `<section><header><h3>${owner.name}</h3><span>每 5 级四选一池 · ${getClassTalents(owner.id).length} 项</span></header><div class="codex__grid">${getClassTalents(owner.id).map(talent => `<article class="codex-card"><div><span>${talent.tag}</span>${talent.maxRank ? `<b>最高 ${talent.maxRank} 级</b>` : talent.repeat ? '<b>可重复</b>' : '<b>唯一</b>'}</div><h3>${talent.title}</h3><p>${talent.description}</p>${talent.requires ? `<small>前置：${getClassTalents(owner.id).find(item => item.id === talent.requires)?.title ?? talent.requires}</small>` : '<small>无前置要求</small>'}</article>`).join('')}</div></section>`).join('')}</div>`; };
+    const definitions = [{ label: `目前解锁 (${unlocked.length})`, render: () => renderShop(unlocked, false) }, { label: `未解锁 (${locked.length})`, render: () => renderShop(locked, true) }, { label: '五倍等级天赋', render: renderTalents }];
+    definitions.forEach((definition, index) => { const tab = document.createElement('button'); tab.type = 'button'; tab.textContent = definition.label; tab.className = index ? '' : 'is-active'; tab.addEventListener('click', () => { tabs.querySelectorAll('button').forEach(button => button.classList.toggle('is-active', button === tab)); definition.render(); }); tabs.append(tab); });
+    definitions[0].render();
+    const close = () => codex.remove(); codex.querySelector('.codex__close')!.addEventListener('click', close); codex.addEventListener('click', event => { if (event.target === codex) close(); });
+  };
+  codexButton.addEventListener('click', showCodex);
 
   const renderSkills = () => {
     skillChoices.innerHTML = '';

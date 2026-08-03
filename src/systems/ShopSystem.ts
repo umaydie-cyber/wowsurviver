@@ -11,7 +11,7 @@ export type ShopItem = {
   apply: () => boolean;
 };
 
-const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
+export const SHOP_SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
   { id: 'heroic-leap', title: `位移技能：${WARRIOR_ACTIVE_SKILLS.heroicLeap.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.heroicLeap.description}按空格使用，冷却 15 秒。`, cost: 48 },
   { id: 'shield-wall', title: `爆发技能：${WARRIOR_ACTIVE_SKILLS.shieldWall.name}`, tag: '技能', description: `${WARRIOR_ACTIVE_SKILLS.shieldWall.description}按 Q 使用，冷却 30 秒。`, cost: 52 },
   { id: 'ice-skating', title: `位移技能：${FROST_MAGE_ACTIVE_SKILLS.iceSkating.name}`, tag: '技能', description: `${FROST_MAGE_ACTIVE_SKILLS.iceSkating.description}按空格使用，冷却 12 秒。`, cost: 48 },
@@ -22,7 +22,7 @@ const SKILL_ITEMS: Omit<ShopItem, 'apply'>[] = [
   { id: 'skill-control', title: '技能：寒能牵引', tag: '技能', description: '提高控制或范围表现，让清怪更稳定。', cost: 48 },
 ];
 
-const UTILITY_ITEMS: Omit<ShopItem, 'apply'>[] = [
+export const SHOP_UTILITY_ITEMS: Omit<ShopItem, 'apply'>[] = [
   { id: 'stat-attack', title: '磨利武器', tag: '属性', description: '攻击强度 +8。', cost: 32 },
   { id: 'stat-spell', title: '聚能水晶', tag: '属性', description: '法术强度 +8。', cost: 32 },
   { id: 'stat-haste', title: '加速齿轮', tag: '属性', description: '急速 +8%。', cost: 36 },
@@ -40,7 +40,7 @@ export class ShopSystem {
   roll(wave: number): ShopItem[] {
     const skillPool = this.availableSkillItems;
     const skill = this.toItem(skillPool[wave % skillPool.length]);
-    const pool = [...skillPool, ...UTILITY_ITEMS].filter(item => item.id !== skill.id);
+    const pool = [...skillPool, ...SHOP_UTILITY_ITEMS].filter(item => item.id !== skill.id);
     const items = [skill];
     while (items.length < 5 && pool.length) {
       const index = Math.floor(Math.random() * pool.length);
@@ -50,7 +50,7 @@ export class ShopSystem {
   }
 
   rollReplacement(excludedIds: string[]): ShopItem {
-    const available = [...this.availableSkillItems, ...UTILITY_ITEMS];
+    const available = [...this.availableSkillItems, ...SHOP_UTILITY_ITEMS];
     const pool = available.filter(item => !excludedIds.includes(item.id));
     const candidates = pool.length ? pool : available;
     return this.toItem(candidates[Math.floor(Math.random() * candidates.length)]);
@@ -63,7 +63,7 @@ export class ShopSystem {
         return { id: `skill-copy-${skill.id}`, title: `技能核心：${skill.name}`, tag: '技能', description: `获得 1 个 1 级${skill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 };
       })
       : (() => { const skill = getBasicSkillDefinition(this.player.classId, this.weapon.basicSkillId)!; return [{ id: `skill-copy-${skill.id}`, title: `技能核心：${skill.name}`, tag: '技能' as const, description: `获得 1 个 1 级${skill.name}。拖动两个同技能同等级核心可合成为高一级（最高 4 级）。`, cost: 38 }]; })();
-    return [...skillCopies, ...SKILL_ITEMS.filter(item => {
+    return [...skillCopies, ...SHOP_SKILL_ITEMS.filter(item => {
       if (item.id === 'heroic-leap') return this.player.classId === 'berserker' && !this.player.heroicLeapUnlocked;
       if (item.id === 'shield-wall') return this.player.classId === 'berserker' && !this.player.shieldWallUnlocked;
       if (item.id === 'ice-skating') return this.player.classId === 'frost-mage' && !this.player.iceSkatingUnlocked;
