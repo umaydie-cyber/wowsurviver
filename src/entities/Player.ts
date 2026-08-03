@@ -9,7 +9,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hp = 120; maxHp = 120; level = 1; xp = 0; xpNeeded = 40; rage = 0; maxRage = 100; azerite = 0;
   readonly skillSlots = SKILL_SLOT_LAYOUT;
   heroicLeapUnlocked = false; shieldWallUnlocked = false; iceSkatingUnlocked = false; icyVeinsUnlocked = false;
-  attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; xpRate = 0; pickupRange = 0;
+  attackPower = 34; spellPower = 34; speed = 100; armor = 0; magicResistance = 0; versatility = 0; haste = 0; mastery = 25; criticalStrike = 10; xpRate = 0; pickupRange = 0;
   private keys: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private movement = new Phaser.Math.Vector2();
   private focusStartedAt = 0;
@@ -58,6 +58,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private get activeDamageMultiplier() { return this.icyVeinsActive ? 1 + FROST_MAGE_ACTIVE_SKILLS.icyVeins.damageBonus : 1; }
   calculateAttackDamage(multiplier = 1) { return this.attackPower * multiplier * (1 + this.versatility / 100) * this.activeDamageMultiplier; }
   calculateSpellDamage(multiplier = 1) { return this.spellPower * multiplier * (1 + this.versatility / 100) * this.activeDamageMultiplier; }
+  rollCritical() { return Math.random() * 100 < this.criticalStrike; }
   reduceAttackDamage(value: number) { return value * (100 / (100 + Math.max(0, this.armor))); }
   reduceSpellDamage(value: number) { return value * (100 / (100 + Math.max(0, this.magicResistance))); }
   reduceAllDamage(value: number) { if(value>0&&this.immunityArmor){this.immunityArmor--;this.showImmunityArmor(false);return 0;}return value * (this.shieldWallActive ? 1 - WARRIOR_ACTIVE_SKILLS.shieldWall.damageReduction : 1); }

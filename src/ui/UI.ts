@@ -189,7 +189,7 @@ export class GameUI {
       const attributes = [
         ['攻击强度', this.player.attackPower.toFixed(1)], ['法术强度', this.player.spellPower.toFixed(1)], ['速度', this.player.speed.toFixed(1)],
         ['护甲', this.player.armor.toFixed(1)], ['魔抗', this.player.magicResistance.toFixed(1)], ['全能伤害率', `${this.player.versatility.toFixed(1)}%`],
-        ['急速', `${this.player.haste.toFixed(1)}%`], ['精通', this.player.mastery.toFixed(1)], ['经验获取', `+${this.player.xpRate.toFixed(1)}%`], ['拾取范围', `+${this.player.pickupRange}`],
+        ['急速', `${this.player.haste.toFixed(1)}%`], ['暴击', `${this.player.criticalStrike.toFixed(1)}%`], ['精通', this.player.mastery.toFixed(1)], ['经验获取', `+${this.player.xpRate.toFixed(1)}%`], ['拾取范围', `+${this.player.pickupRange}`],
       ];
       stats.innerHTML = attributes.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
     };
