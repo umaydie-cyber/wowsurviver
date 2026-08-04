@@ -9,6 +9,7 @@ import { DIFFICULTIES, type DifficultyDefinition, type DifficultyId } from '../s
 import { Weapon } from '../combat/Weapon';
 import { getSkillRankEffects } from '../systems/SkillLoadout';
 import { MAPS, type MapId } from '../maps';
+import type { ShopCheckpoint } from '../systems/Persistence';
 
 function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' | 'shop', title: string, subtitle: string) {
   const overlay = document.createElement('section');
@@ -29,7 +30,7 @@ function createChoiceOverlay(kind: 'start' | 'difficulty' | 'class' | 'upgrade' 
 
 export type StartSelection = { mapId: MapId; difficultyId: DifficultyId; classId: ClassId; basicSkillId: BasicSkillId };
 
-export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartSelection) => void) {
+export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartSelection | ShopCheckpoint) => void, checkpoint?: ShopCheckpoint) {
   const { overlay } = createChoiceOverlay('start', '准备踏入战场', '选择地图、难度、职业与该职业可用的基础输出技能');
   const form = document.createElement('div');
   form.className = 'start-builder';
@@ -55,6 +56,7 @@ export function showStartSelection(scene: Phaser.Scene, pick: (selection: StartS
   const skillSection = section('4 · 初始武器与基础输出技能');
   const skillChoices = document.createElement('div'); skillChoices.className = 'start-builder__skills'; skillSection.append(skillChoices);
   const startButton = document.createElement('button'); startButton.type = 'button'; startButton.className = 'start-builder__submit'; startButton.textContent = '开始战斗'; form.append(startButton);
+  if(checkpoint){const resumeButton=document.createElement('button');resumeButton.type='button';resumeButton.className='start-builder__submit';resumeButton.textContent=`继续上次冒险 · 第 ${checkpoint.completedWave} 波商店`;resumeButton.addEventListener('click',()=>{if(submitted)return;submitted=true;overlay.remove();pick(checkpoint);});form.append(resumeButton);}
 
   const showCodex = () => {
     const codex = document.createElement('section'); codex.className = 'codex'; codex.setAttribute('role', 'dialog'); codex.setAttribute('aria-modal', 'true'); codex.setAttribute('aria-label', '冒险图鉴');

@@ -8,6 +8,7 @@ export class Spawner {
   private wave = 0; bossSpawned = false; private waveStartedAt = 0; private nextSpawnAt = 0; private inBreak = false;
   constructor(private scene:Phaser.Scene,private enemies:Phaser.Physics.Arcade.Group,private player:Player,private difficulty?:DifficultyDefinition) {}
   start(){ this.startWave(); }
+  resumeFromBreak(completedWave:number){this.wave=Math.max(0,completedWave-1);this.inBreak=true;}
   update(_elapsed:number){
     if(this.inBreak)return;
     const now=this.scene.time.now;
