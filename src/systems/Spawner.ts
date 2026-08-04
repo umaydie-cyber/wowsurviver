@@ -26,7 +26,12 @@ export class Spawner {
     }
     this.spawnWave(10+this.wave*3);
   }
-  private endWave(){this.inBreak=true;this.enemies.getChildren().forEach(enemy=>enemy.destroy());this.scene.events.emit('wave-break',this.currentWave,()=>this.continue());}
+  private endWave(){
+    this.inBreak=true;
+    const bossTimedOut=isBossWave(this.currentWave)&&this.enemies.getChildren().some(enemy=>(enemy as Enemy).boss&&(enemy as Enemy).active);
+    this.enemies.getChildren().forEach(enemy=>enemy.destroy());
+    this.scene.events.emit('wave-break',this.currentWave,()=>this.continue(),{rewardEligible:!bossTimedOut,bossTimedOut});
+  }
   private spawnWave(n:number){for(let i=0;i<n;i++)this.spawn(this.pickEnemyKind());}
   private pickEnemyKind():EnemyKind{
     return pickEnemyKindForWave(this.wave,Math.random());

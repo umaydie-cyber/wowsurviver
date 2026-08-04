@@ -48,10 +48,10 @@ export function writeGameSave(save: GameSave) {
   document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(save))}; Max-Age=${MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
 }
 
-export function updateProgress(save: GameSave, completedWave: number, mapId: MapId) {
+export function updateProgress(save: GameSave, completedWave: number, mapId: MapId, rewardEligible = true) {
   save.profile.highestWave = Math.max(save.profile.highestWave, completedWave);
   if (!save.profile.achievements.includes('first-wave')) save.profile.achievements.push('first-wave');
-  if (completedWave >= 8) {
+  if (completedWave === 8 && rewardEligible) {
     if (!save.profile.completedMaps.includes(mapId)) save.profile.completedMaps.push(mapId);
     if (!save.profile.achievements.includes('boss-slayer')) save.profile.achievements.push('boss-slayer');
   }
