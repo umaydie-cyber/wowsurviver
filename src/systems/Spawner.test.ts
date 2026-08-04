@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOSS_CANDIDATES, isBossWave, pickEnemyKindForWave } from './spawnRules';
+import { BOSS_CANDIDATES, isBossWave, pickEnemyKindForWave, waveDurationSeconds } from './spawnRules';
 
 describe('pickEnemyKindForWave', () => {
   it('does not spawn fire-fist ogres before wave 6', () => {
@@ -32,5 +32,11 @@ describe('boss wave rules', () => {
 
   it('defines the planned three-boss selection pool', () => {
     expect(BOSS_CANDIDATES).toEqual(['奥妮克希亚', '吉安娜', '血法师萨尔诺斯']);
+  });
+});
+
+describe('wave duration', () => {
+  it('adds five seconds to every wave without a duration cap', () => {
+    expect([1, 2, 7, 8, 20].map(waveDurationSeconds)).toEqual([20, 25, 50, 55, 115]);
   });
 });
