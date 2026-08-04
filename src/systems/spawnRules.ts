@@ -5,6 +5,13 @@ export const BOSS_CANDIDATES = ['奥妮克希亚', '吉安娜', '血法师萨尔
 
 export function isBossWave(wave:number){return wave===BOSS_WAVE;}
 
+export const FIRST_WAVE_SECONDS = 20;
+export const WAVE_STEP_SECONDS = 5;
+
+export function waveDurationSeconds(wave:number){
+  return FIRST_WAVE_SECONDS+(wave-1)*WAVE_STEP_SECONDS;
+}
+
 export function pickEnemyKindForWave(waveIndex:number,roll:number):EnemyKind{
   const wave=waveIndex+1;
   const barrensKinds:EnemyKind[]=[];
