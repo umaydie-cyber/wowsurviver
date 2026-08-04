@@ -274,7 +274,7 @@ export class GameUI {
     };
     renderSlots();
     const leaveButton = overlay.querySelector<HTMLButtonElement>('.shop-continue')!;
-    leaveButton.addEventListener('click', () => { this.hideShop(); leave(); });
+    leaveButton.addEventListener('click', () => { leaveButton.disabled = true; this.hideShop(); leave(); }, { once: true });
   }
 
   hideShop() {

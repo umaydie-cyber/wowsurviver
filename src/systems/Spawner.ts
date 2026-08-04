@@ -12,15 +12,20 @@ export class Spawner {
   update(_elapsed:number){
     if(this.inBreak)return;
     const now=this.scene.time.now;
-    if(isBossWave(this.currentWave)){
-      if(!this.bossSpawned){this.bossSpawned=true;const bosses:EnemyKind[]=['onyxia','jaina','thalnos'];const boss=bosses[Math.floor(Math.random()*bosses.length)];this.spawn(boss);this.scene.events.emit(`${boss}-start`);}
-    }else if(now>=this.nextSpawnAt){this.spawnWave(10+this.wave*3);this.nextSpawnAt=now+SPAWN_INTERVAL_MS;}
+    if(!isBossWave(this.currentWave)&&now>=this.nextSpawnAt){this.spawnWave(10+this.wave*3);this.nextSpawnAt=now+SPAWN_INTERVAL_MS;}
     if(now-this.waveStartedAt>=this.currentWaveSeconds*1000)this.endWave();
   }
   continue(){ if(!this.inBreak)return; this.wave++; this.startWave(); }
   get currentWave(){return this.wave+1;}
   get currentWaveSeconds(){return waveDurationSeconds(this.currentWave);}
-  private startWave(){this.inBreak=false;this.waveStartedAt=this.scene.time.now;this.nextSpawnAt=this.waveStartedAt;if(isBossWave(this.currentWave))this.bossSpawned=false;this.scene.events.emit('wave-start',this.currentWave,this.currentWaveSeconds);}
+  private startWave(){this.inBreak=false;this.waveStartedAt=this.scene.time.now;this.nextSpawnAt=this.waveStartedAt+SPAWN_INTERVAL_MS;if(isBossWave(this.currentWave))this.bossSpawned=false;this.scene.events.emit('wave-start',this.currentWave,this.currentWaveSeconds);this.spawnOpeningGroup();}
+  private spawnOpeningGroup(){
+    if(isBossWave(this.currentWave)){
+      if(this.bossSpawned)return;
+      this.bossSpawned=true;const bosses:EnemyKind[]=['onyxia','jaina','thalnos'];const boss=bosses[Math.floor(Math.random()*bosses.length)];this.spawn(boss);this.scene.events.emit(`${boss}-start`);return;
+    }
+    this.spawnWave(10+this.wave*3);
+  }
   private endWave(){this.inBreak=true;this.enemies.getChildren().forEach(enemy=>enemy.destroy());this.scene.events.emit('wave-break',this.currentWave,()=>this.continue());}
   private spawnWave(n:number){for(let i=0;i<n;i++)this.spawn(this.pickEnemyKind());}
   private pickEnemyKind():EnemyKind{
