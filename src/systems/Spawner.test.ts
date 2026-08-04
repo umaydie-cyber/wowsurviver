@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BOSS_CANDIDATES, isBossWave, pickEnemyKindForWave, waveDurationSeconds } from './spawnRules';
+import { BOSS_CANDIDATES, BOSS_WAVE_TIME_LIMIT_SECONDS, isBossWave, pickEnemyKindForWave, waveDurationSeconds } from './spawnRules';
 import { Spawner } from './Spawner';
 
 vi.mock('phaser', () => ({ default: { Math: { Between: () => 500 } } }));
@@ -41,8 +41,9 @@ describe('boss wave rules', () => {
 });
 
 describe('wave duration', () => {
-  it('adds five seconds to every wave without a duration cap', () => {
-    expect([1, 2, 7, 8, 20].map(waveDurationSeconds)).toEqual([20, 25, 50, 55, 115]);
+  it('caps the boss wave at two minutes while normal waves keep scaling', () => {
+    expect(BOSS_WAVE_TIME_LIMIT_SECONDS).toBe(120);
+    expect([1, 2, 7, 8, 20].map(waveDurationSeconds)).toEqual([20, 25, 50, 120, 115]);
   });
 });
 
@@ -59,5 +60,21 @@ describe('Spawner shop transition', () => {
     expect(spawner.currentWave).toBe(2);
     expect(spawn).toHaveBeenCalledTimes(13);
     expect(emit).toHaveBeenCalledWith('wave-start', 2, 25);
+  });
+
+  it('clears a surviving boss and marks the shop transition as unrewarded', () => {
+    const emit = vi.fn();
+    const boss = { boss: true, active: true, destroy: vi.fn() };
+    const scene = { time: { now: 120_000 }, events: { emit } } as never;
+    const spawner = new Spawner(scene, { getChildren: () => [boss] } as never, {} as never);
+
+    Object.assign(spawner, { wave: 7 });
+    (spawner as unknown as { endWave: () => void }).endWave();
+
+    expect(boss.destroy).toHaveBeenCalledOnce();
+    expect(emit).toHaveBeenCalledWith('wave-break', 8, expect.any(Function), {
+      rewardEligible: false,
+      bossTimedOut: true,
+    });
   });
 });

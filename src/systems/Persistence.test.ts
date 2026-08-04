@@ -14,4 +14,14 @@ describe('cookie persistence', () => {
     expect(save.profile.completedMaps).toEqual(['barrens']);
     expect(save.profile.achievements).toEqual(['first-wave', 'boss-slayer', 'wave-10']);
   });
+
+  it('does not grant boss rewards after a timed-out boss wave', () => {
+    const save = emptySave();
+    updateProgress(save, 8, 'barrens', false);
+    updateProgress(save, 9, 'barrens');
+
+    expect(save.profile.highestWave).toBe(9);
+    expect(save.profile.completedMaps).toEqual([]);
+    expect(save.profile.achievements).toEqual(['first-wave']);
+  });
 });
