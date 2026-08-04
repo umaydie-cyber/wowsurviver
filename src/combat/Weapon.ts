@@ -5,10 +5,13 @@ import { Projectile } from './Projectile';
 import type { BasicSkillId, ClassId } from '../classes';
 import { BLOODTHIRST, bloodthirstHealing, DEEP_WOUNDS, deepWoundsTickDamage, EXECUTE, executeDamageMultiplier, rotationalMomentumBonus } from './BerserkerSkills';
 import { FROST_MAGE_SKILLS, iceLanceDamageMultiplier } from './FrostMageSkills';
+import { combustionDamageMultiplier, FIRE_MAGE_SKILLS, pyroblastIgniteDuration } from './FireMageSkills';
 import { getSkillRankEffects, SkillLoadout } from '../systems/SkillLoadout';
 
-export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot'|'rotational-momentum'|'deep-wounds';
+export type SkillTalent = 'range'|'duration'|'cooldown'|'eternal'|'twin'|'blood'|'fury'|'damage'|'speed'|'control'|'multishot'|'rotational-momentum'|'deep-wounds'|'combustion'|'flame-storm'|'pyroblast'|'hot-streak';
 type Blizzard = { x:number; y:number; radius:number; expiresAt:number; nextTick:number; effect:Phaser.GameObjects.Graphics; slowedEnemies:Set<Enemy> };
+type FlameStorm = { x:number; y:number; radius:number; expiresAt:number; nextTick:number; effect:Phaser.GameObjects.Graphics };
+type Ignite = { expiresAt:number; nextTick:number; damage:number };
 type DeepWound = { expiresAt:number; nextTick:number };
 
 export class Weapon {
@@ -16,23 +19,27 @@ export class Weapon {
   cooldown:number; range=92; duration=650; damageMultiplier=1; projectileSpeed=380;
   hitCooldownReduction=0; permanent=false; twinStrike=false; lifeSteal=false; rageOnHit=2; multishot=1; control=0;
   rotationalMomentumRank=0; deepWoundsRank=0; private pendingWhirlwindHits=0;
+  combustionRank=0; flameStormRank=0; pyroblastRank=0; hotStreak=false; combustionStacks=0;
+  private lastFlameStorm=-Infinity; private lastPyroblast=-Infinity; private flameStorms=new Set<FlameStorm>(); private ignites=new Map<Enemy,Ignite[]>();
   private lastCast=-3000; private lastMortalStrike=-4500; private lastBloodthirst=-BLOODTHIRST.cooldownMs; private lastExecute=-EXECUTE.cooldownMs; private activeUntil=0; private hitEnemies=new Set<Enemy>(); private castDamage=1; private nextPermanentTick=0;
   private blizzards=new Set<Blizzard>();
   private deepWounds=new Map<Enemy,DeepWound>();
   private effect:Phaser.GameObjects.Arc; private blades:Phaser.GameObjects.Graphics; private projectiles:Phaser.Physics.Arcade.Group;
   constructor(private scene:Phaser.Scene,private player:Player,private enemies:Phaser.Physics.Arcade.Group,readonly classId:ClassId,readonly basicSkillId:BasicSkillId){
     this.loadout=new SkillLoadout(classId,basicSkillId);
-    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:basicSkillId==='blizzard'?FROST_MAGE_SKILLS.blizzard.cooldownMs:2000;
+    this.cooldown=classId==='berserker'?3000:classId==='beast-hunter'?1800:basicSkillId==='frozen-orb'?FROST_MAGE_SKILLS.frozenOrb.cooldownMs:basicSkillId==='ice-lance'?FROST_MAGE_SKILLS.iceLance.cooldownMs:basicSkillId==='blizzard'?FROST_MAGE_SKILLS.blizzard.cooldownMs:basicSkillId==='flame-storm'?FIRE_MAGE_SKILLS.flameStorm.cooldownMs:basicSkillId==='pyroblast'?FIRE_MAGE_SKILLS.pyroblast.cooldownMs:2000;
     this.effect=scene.add.circle(player.x,player.y,this.range,0xf08a24,.11).setStrokeStyle(4,0xffc247,.8).setDepth(4).setVisible(false);
     this.blades=scene.add.graphics().setDepth(6).setVisible(false);
     this.projectiles=scene.physics.add.group();
     scene.physics.add.overlap(this.projectiles,enemies,(object,target)=>this.projectileHit(object as Projectile,target as Enemy));
   }
   addSkillCopy(skillId:BasicSkillId){return this.loadout.add(skillId);}
-  private rankEffects(skillId:BasicSkillId){return getSkillRankEffects(this.loadout.slots.find(slot=>slot?.skillId===skillId)?.rank??1);}
+  private skillRank(skillId:BasicSkillId){return this.loadout.slots.find(slot=>slot?.skillId===skillId)?.rank??1;}
+  private rankEffects(skillId:BasicSkillId){return getSkillRankEffects(this.skillRank(skillId));}
   private hasSkill(skillId:BasicSkillId){return this.loadout.slots.some(slot=>slot?.skillId===skillId);}
   update(time:number){
     this.updateBlizzards(time);
+    this.updateFlameStorms(time);this.updateIgnites(time);
     this.updateDeepWounds(time);
     if(this.player.silenced){this.drawWhirlwind(time,false);return;}
     if(this.classId!=='berserker'){this.rangedUpdate(time);return;}
@@ -58,8 +65,13 @@ export class Weapon {
     if(talent==='eternal')this.permanent=true;if(talent==='twin')this.twinStrike=true;if(talent==='blood')this.lifeSteal=true;if(talent==='fury')this.rageOnHit+=2;
     if(talent==='damage')this.damageMultiplier*=1.25;if(talent==='speed'){this.cooldown*=.82;this.projectileSpeed*=1.12;}if(talent==='control')this.control+=.18;if(talent==='multishot')this.multishot++;
     if(talent==='rotational-momentum')this.rotationalMomentumRank=Math.min(3,this.rotationalMomentumRank+1);if(talent==='deep-wounds')this.deepWoundsRank=Math.min(3,this.deepWoundsRank+1);
+    if(talent==='combustion')this.combustionRank=Math.min(3,this.combustionRank+1);if(talent==='flame-storm')this.flameStormRank=Math.min(3,this.flameStormRank+1);if(talent==='pyroblast')this.pyroblastRank=Math.min(3,this.pyroblastRank+1);if(talent==='hot-streak')this.hotStreak=true;
   }
-  private rangedUpdate(time:number){if(time-this.lastCast<this.effectiveCooldown(this.basicSkillId))return;const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;this.lastCast=time;if(this.basicSkillId==='blizzard'){this.castBlizzard(targets[0],time);return;}for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
+  private rangedUpdate(time:number){const targets=(this.enemies.getChildren() as Enemy[]).filter(e=>e.active).sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y));if(!targets.length)return;if(this.classId==='fire-mage'){if(this.flameStormRank&&time-this.lastFlameStorm>=this.fireCooldown(FIRE_MAGE_SKILLS.flameStorm.cooldownMs,this.flameStormRank)){this.lastFlameStorm=time;this.castFlameStorm(targets[0],time,this.flameStormRank);}if(this.pyroblastRank&&time-this.lastPyroblast>=this.fireCooldown(FIRE_MAGE_SKILLS.pyroblast.cooldownMs,this.pyroblastRank)){this.lastPyroblast=time;this.castPyroblast(targets[0],this.pyroblastRank);}}if(time-this.lastCast<this.effectiveCooldown(this.basicSkillId))return;this.lastCast=time;if(this.basicSkillId==='blizzard'){this.castBlizzard(targets[0],time);return;}if(this.basicSkillId==='flame-storm'){this.castFlameStorm(targets[0],time,this.skillRank('flame-storm'));return;}if(this.basicSkillId==='pyroblast'){this.castPyroblast(targets[0],this.skillRank('pyroblast'));return;}for(let i=0;i<this.multishot;i++)this.fireAt(targets[i%targets.length]);}
+  private fireCooldown(base:number,rank:number){return base*Math.pow(.9,rank-1)/(1+Math.max(0,this.player.totalHaste)/100);}
+  private castFlameStorm(target:Enemy,time:number,rank:number){const scaling=getSkillRankEffects(Math.min(4,rank) as 1|2|3|4),radius=FIRE_MAGE_SKILLS.flameStorm.radius*scaling.rangeMultiplier,x=target.x,y=target.y,effect=this.scene.add.graphics().setDepth(2);effect.fillStyle(0xff3d12,.2).fillCircle(x,y,radius).lineStyle(4,0xff9d2e,.9).strokeCircle(x,y,radius);for(let i=0;i<26;i++){const angle=i*2.15,distance=12+(i*41)%(radius-12),size=3+i%4;effect.fillStyle(i%2?0xffc12d:0xff5520,.8).fillTriangle(x+Math.cos(angle)*distance,y+Math.sin(angle)*distance-size*2,x+Math.cos(angle)*distance-size,y+Math.sin(angle)*distance+size,x+Math.cos(angle)*distance+size,y+Math.sin(angle)*distance+size);}this.scene.tweens.add({targets:effect,angle:18,alpha:.5,duration:650,yoyo:true,repeat:-1});this.flameStorms.add({x,y,radius,expiresAt:time+FIRE_MAGE_SKILLS.flameStorm.durationMs,nextTick:time,effect});}
+  private updateFlameStorms(time:number){for(const storm of this.flameStorms){if(time>=storm.expiresAt){this.scene.tweens.killTweensOf(storm.effect);storm.effect.destroy();this.flameStorms.delete(storm);continue;}if(time<storm.nextTick)continue;storm.nextTick+=FIRE_MAGE_SKILLS.flameStorm.tickMs;for(const enemy of this.enemies.getChildren() as Enemy[]){if(!enemy.active||Phaser.Math.Distance.Between(storm.x,storm.y,enemy.x,enemy.y)>storm.radius)continue;this.dealSkillDamage(enemy,this.player.calculateSpellDamage(this.damageMultiplier*FIRE_MAGE_SKILLS.flameStorm.damageMultiplier),time,true);this.scene.events.emit('skill-hit',enemy);}}}
+  private castPyroblast(target:Enemy,rank:number){const shot=new Projectile(this.scene,this.player.x,this.player.y,this.player.calculateSpellDamage(this.damageMultiplier*FIRE_MAGE_SKILLS.pyroblast.damageMultiplier),'pyroblast');shot.skill='pyroblast';shot.setScale(1.45);shot.setData('pyroRank',rank);this.projectiles.add(shot);this.scene.physics.moveToObject(shot,target,FIRE_MAGE_SKILLS.pyroblast.projectileSpeed);this.scene.time.delayedCall(2600,()=>shot.active&&shot.destroy());}
   private castBlizzard(target:Enemy,time:number){
     const rank=this.rankEffects('blizzard'),{durationMs}=FROST_MAGE_SKILLS.blizzard,radius=FROST_MAGE_SKILLS.blizzard.radius*rank.rangeMultiplier,x=target.x,y=target.y,effect=this.scene.add.graphics().setDepth(2);
     effect.fillStyle(0x65cfff,.16).fillCircle(x,y,radius).lineStyle(3,0xbfefff,.72).strokeCircle(x,y,radius);
@@ -84,13 +96,13 @@ export class Weapon {
     const texture=orb?'frozen-orb':lance?'ice-lance':frost?'frost':this.classId==='beast-hunter'?'beast':'flame';
     const base=this.classId==='beast-hunter'?1.35:orb?FROST_MAGE_SKILLS.frozenOrb.damageMultiplier:lance?iceLanceDamageMultiplier(target.isFrozen(this.scene.time.now)):1;
     const rank=this.rankEffects(this.basicSkillId),shot=new Projectile(this.scene,this.player.x,this.player.y,(this.classId==='fire-mage'||frost?this.player.calculateSpellDamage(this.damageMultiplier*rank.damageMultiplier*base):this.player.calculateAttackDamage(this.damageMultiplier*rank.damageMultiplier*base)),texture);
-    shot.skill=orb?'frozen-orb':lance?'ice-lance':frost?'frostbolt':'standard';shot.slow=frost?(orb?FROST_MAGE_SKILLS.frozenOrb.slow:FROST_MAGE_SKILLS.frostbolt.slow)+this.control:0;
+    shot.skill=orb?'frozen-orb':lance?'ice-lance':frost?'frostbolt':this.classId==='fire-mage'?'fireball':'standard';shot.slow=frost?(orb?FROST_MAGE_SKILLS.frozenOrb.slow:FROST_MAGE_SKILLS.frostbolt.slow)+this.control:0;
     if(orb)shot.setCircle(FROST_MAGE_SKILLS.frozenOrb.radius*rank.rangeMultiplier).setScale(1.35*rank.rangeMultiplier);
     this.projectiles.add(shot);this.scene.physics.moveToObject(shot,target,orb?FROST_MAGE_SKILLS.frozenOrb.speed:lance?FROST_MAGE_SKILLS.iceLance.speed:this.projectileSpeed);
     this.scene.time.delayedCall(orb?FROST_MAGE_SKILLS.frozenOrb.lifetimeMs:1800,()=>shot.active&&shot.destroy());
   }
   private projectileHit(shot:Projectile,enemy:Enemy){
-    if(!shot.active||!enemy.active||shot.hitEnemies.has(enemy))return;shot.hitEnemies.add(enemy);this.dealSkillDamage(enemy,shot.damage,this.scene.time.now);
+    if(!shot.active||!enemy.active||shot.hitEnemies.has(enemy))return;shot.hitEnemies.add(enemy);const fire=shot.skill==='fireball'||shot.skill==='pyroblast';this.dealSkillDamage(enemy,shot.damage,this.scene.time.now,fire);if(shot.skill==='pyroblast'){const rank=shot.getData('pyroRank') as number,duration=pyroblastIgniteDuration(rank);if(duration){const list=this.ignites.get(enemy)??[];list.push({expiresAt:this.scene.time.now+duration,nextTick:this.scene.time.now+FIRE_MAGE_SKILLS.pyroblast.igniteTickMs,damage:this.player.calculateSpellDamage(FIRE_MAGE_SKILLS.pyroblast.igniteDamageMultiplier)});this.ignites.set(enemy,list);}}
     if(shot.skill==='frostbolt'&&Math.random()<FROST_MAGE_SKILLS.frostbolt.freezeChance){enemy.freeze(this.scene.time.now+FROST_MAGE_SKILLS.frostbolt.freezeMs);this.scene.time.delayedCall(FROST_MAGE_SKILLS.frostbolt.freezeMs,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
     else if(shot.slow){enemy.speed=Math.max(28,enemy.speed*(1-shot.slow));enemy.setTint(0x8edcff);this.scene.time.delayedCall(1800,()=>enemy.active&&!enemy.isFrozen(this.scene.time.now)&&enemy.clearTint());}
     if(shot.skill!=='frozen-orb')shot.destroy();this.scene.events.emit('skill-hit',enemy);
@@ -135,7 +147,8 @@ export class Weapon {
     const text=this.scene.add.text(target.x,target.y-30,subLabel?`${label} · ${subLabel}`:label,{fontSize:'13px',fontStyle:'bold',color:'#fff3c4',stroke:'#321016',strokeThickness:3}).setOrigin(.5).setDepth(8);
     this.scene.tweens.add({targets:text,y:text.y-18,alpha:0,duration:650,onComplete:()=>text.destroy()});this.scene.cameras.main.shake(75,.003);
   }
-  private dealSkillDamage(enemy:Enemy,damage:number,time:number){const critical=this.player.rollCritical();enemy.hp-=damage*(critical?2:1);this.player.dealtDamage(time);if(critical&&this.deepWoundsRank)this.deepWounds.set(enemy,{expiresAt:time+DEEP_WOUNDS.durationMs,nextTick:time+DEEP_WOUNDS.tickMs});}
+  private dealSkillDamage(enemy:Enemy,damage:number,time:number,fire=false){const empowered=fire&&this.combustionRank>0&&this.combustionStacks>=FIRE_MAGE_SKILLS.combustion.requiredStacks;if(empowered)this.combustionStacks-=FIRE_MAGE_SKILLS.combustion.requiredStacks;const critical=empowered||this.player.rollCritical();enemy.hp-=damage*(critical?2:1)*(empowered?combustionDamageMultiplier(this.combustionRank):1);this.player.dealtDamage(time);if(critical&&fire&&this.combustionRank){this.combustionStacks=Math.min(3,this.combustionStacks+1);if(this.combustionStacks===3&&this.hotStreak){const target=this.nearestTargetInRange(Infinity);if(target)this.castPyroblast(target,Math.max(1,this.pyroblastRank));}}if(critical&&this.deepWoundsRank)this.deepWounds.set(enemy,{expiresAt:time+DEEP_WOUNDS.durationMs,nextTick:time+DEEP_WOUNDS.tickMs});}
+  private updateIgnites(time:number){for(const [enemy,stacks] of this.ignites){if(!enemy.active){this.ignites.delete(enemy);continue;}for(const ignite of [...stacks]){if(time>=ignite.expiresAt){stacks.splice(stacks.indexOf(ignite),1);continue;}if(time>=ignite.nextTick){ignite.nextTick+=FIRE_MAGE_SKILLS.pyroblast.igniteTickMs;enemy.hp-=ignite.damage;this.player.dealtDamage(time);this.scene.events.emit('skill-hit',enemy);}}if(!stacks.length)this.ignites.delete(enemy);}}
   private updateDeepWounds(time:number){for(const [enemy,wound] of this.deepWounds){if(!enemy.active||time>=wound.expiresAt){this.deepWounds.delete(enemy);continue;}if(time<wound.nextTick)continue;wound.nextTick+=DEEP_WOUNDS.tickMs;enemy.hp-=deepWoundsTickDamage(this.deepWoundsRank,this.player.attackPower,this.player.totalHaste)*(1+this.player.versatility/100);this.player.dealtDamage(time);this.scene.events.emit('skill-hit',enemy);}}
   private drawWhirlwind(time:number,active:boolean){const rank=this.rankEffects('whirlwind');this.effect.setPosition(this.player.x,this.player.y).setRadius(this.range*rank.rangeMultiplier).setVisible(active);this.blades.clear().setVisible(active);if(!active)return;const count=this.twinStrike?4:2;this.blades.lineStyle(8,0xe7edf4,.9);for(let i=0;i<count;i++){const angle=time*.012+i*Math.PI*2/count;this.blades.lineBetween(this.player.x+Math.cos(angle)*this.range*rank.rangeMultiplier*.25,this.player.y+Math.sin(angle)*this.range*rank.rangeMultiplier*.25,this.player.x+Math.cos(angle)*this.range*rank.rangeMultiplier*.88,this.player.y+Math.sin(angle)*this.range*rank.rangeMultiplier*.88);}}
 }
