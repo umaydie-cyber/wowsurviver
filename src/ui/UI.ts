@@ -123,12 +123,13 @@ export class GameUI {
   private xpTrackWidth = 1;
   private upgradeOverlay?: HTMLElement;
   private shopOverlay?: HTMLElement;
+  private gameOverOverlay?: HTMLElement;
   private bossMessage?: Phaser.GameObjects.Text;
   private acquiredTalents = new Map<string, { title: string; tag: string; description: string; count: number }>();
 
   constructor(private scene: Phaser.Scene, private player: Player, private weapon: Weapon, private classId: ClassId, private difficulty: DifficultyDefinition, private basicSkillId: BasicSkillId, private mapId: MapId) {
     this.create();
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); });
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.hideUpgrades(); this.hideShop(); this.hideGameOver(); });
   }
 
   private create() {
@@ -299,10 +300,25 @@ export class GameUI {
   }
 
   gameOver(restart: () => void) {
-    const cx = this.scene.scale.width / 2, cy = this.scene.scale.height / 2;
-    const bg = this.scene.add.rectangle(cx, cy, this.scene.scale.width, this.scene.scale.height, 0x05060a, .88).setInteractive();
-    const title = this.scene.add.text(cx, cy - 50, '战斗终结', { fontFamily: 'Marcellus', fontSize: '48px', color: '#d94a3d' }).setOrigin(.5);
-    const btn = this.scene.add.text(cx, cy + 35, '再次踏入战场', { fontSize: '18px', backgroundColor: '#9a6b21', padding: { x: 28, y: 14 } }).setOrigin(.5).setInteractive({ useHandCursor: true }).on('pointerdown', restart);
-    this.scene.add.container(0, 0, [bg, title, btn]).setScrollFactor(0).setDepth(60);
+    // Choice/shop overlays live above the canvas and would intercept the canvas
+    // restart control. Keep the whole defeat screen in that same DOM layer.
+    this.hideUpgrades();
+    this.hideShop();
+    this.hideGameOver();
+    const overlay = document.createElement('section');
+    overlay.className = 'game-over-overlay';
+    overlay.setAttribute('aria-label', '战斗终结');
+    overlay.innerHTML = '<h1>战斗终结</h1><button type="button">再次踏入战场</button>';
+    document.querySelector('#game')!.append(overlay);
+    this.gameOverOverlay = overlay;
+    overlay.querySelector('button')!.addEventListener('click', () => {
+      this.hideGameOver();
+      restart();
+    }, { once: true });
+  }
+
+  private hideGameOver() {
+    this.gameOverOverlay?.remove();
+    this.gameOverOverlay = undefined;
   }
 }
