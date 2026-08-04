@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BOSS_CANDIDATES, isBossWave, pickEnemyKindForWave, waveDurationSeconds } from './spawnRules';
+import { Spawner } from './Spawner';
+
+vi.mock('phaser', () => ({ default: { Math: { Between: () => 500 } } }));
+vi.mock('../entities/Enemy', () => ({ Enemy: class {} }));
+vi.mock('../entities/Player', () => ({ Player: class {} }));
 
 describe('pickEnemyKindForWave', () => {
   it('does not spawn fire-fist ogres before wave 6', () => {
@@ -38,5 +43,21 @@ describe('boss wave rules', () => {
 describe('wave duration', () => {
   it('adds five seconds to every wave without a duration cap', () => {
     expect([1, 2, 7, 8, 20].map(waveDurationSeconds)).toEqual([20, 25, 50, 55, 115]);
+  });
+});
+
+describe('Spawner shop transition', () => {
+  it('spawns the next wave opening group immediately after leaving the shop', () => {
+    const emit = vi.fn();
+    const scene = { time: { now: 12_000 }, events: { emit } } as never;
+    const spawner = new Spawner(scene, {} as never, {} as never);
+    const spawn = vi.spyOn(spawner, 'spawn').mockReturnValue({} as never);
+
+    spawner.resumeFromBreak(1);
+    spawner.continue();
+
+    expect(spawner.currentWave).toBe(2);
+    expect(spawn).toHaveBeenCalledTimes(13);
+    expect(emit).toHaveBeenCalledWith('wave-start', 2, 25);
   });
 });
