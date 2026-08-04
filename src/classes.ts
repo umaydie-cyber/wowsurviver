@@ -1,5 +1,5 @@
 export type ClassId = 'berserker' | 'frost-mage' | 'fire-mage' | 'beast-hunter';
-export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'blizzard' | 'fireball' | 'kill-command';
+export type BasicSkillId = 'whirlwind' | 'mortal-strike' | 'bloodthirst' | 'execute' | 'frostbolt' | 'frozen-orb' | 'ice-lance' | 'blizzard' | 'fireball' | 'flame-storm' | 'pyroblast' | 'kill-command';
 
 export type BasicSkillDefinition = {
   id: BasicSkillId;
@@ -43,6 +43,8 @@ export const CLASSES: ClassDefinition[] = [
   ] },
   { id: 'fire-mage', name: '火焰法师', skill: '火球术', fantasy: '引燃目标，让火球逐步爆裂成火海', color: 0xff7a35, basicSkills: [
     { id: 'fireball', name: '火球术', weapon: '炎心法杖', description: '向最近的敌人发射高伤害火球。' },
+    { id: 'flame-storm', name: '烈焰风暴', weapon: '焚天法典', description: '在目标处召唤火焰风暴，持续灼烧范围内敌人。' },
+    { id: 'pyroblast', name: '炎爆术', weapon: '炎爆魔杖', description: '长冷却高伤害火球，并留下可以叠加的点燃。' },
   ] },
   { id: 'beast-hunter', name: '兽王猎人', skill: '杀戮命令', fantasy: '命令灵兽扑向最近敌人发动撕咬', color: 0x73c75b, basicSkills: [
     { id: 'kill-command', name: '杀戮命令', weapon: '驯兽号角', description: '命令灵兽扑向最近的敌人进行攻击。' },
