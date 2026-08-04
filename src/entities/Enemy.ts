@@ -41,13 +41,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const damageMultiplier = difficulty?.enemyDamageMultiplier ?? 1;
     this.kind = kind; this.boss = kind === 'onyxia' || kind === 'jaina' || kind === 'thalnos'; this.hp = Math.round(stats.hp * healthMultiplier); this.maxHp = this.hp; this.damage = stats.damage * damageMultiplier; this.speed = stats.speed;
     this.setCircle(stats.radius).setDepth(3);
+    if (kind === 'thalnos') this.setDisplaySize(76, 76);
     if (kind === 'murlocShaman' || kind === 'fireFistOgre' || kind === 'onyxiaWhelp' || kind === 'zhevraCharger' || kind === 'windfuryHarpy' || kind === 'kolkarWarcaller' || kind === 'razormaneGeomancer' || kind === 'thunderLizard') this.nextCastAt = scene.time.now + Phaser.Math.Between(1200, 2400);
   }
   updateBehavior(player: Player, time: number) {
     if (this.kind === 'thalnosSoul') { this.setVelocity(0, 0); return; }
-    if (this.isFrozen(time)) { this.setVelocity(0, 0); return; }
+    if (this.isFrozen(time)) { this.setVelocity(0, 0); this.setAngle(0); return; }
     if(this.kind==='sunscaleScytheclaw'&&!this.enraged&&this.hp<=this.maxHp*.5){this.enraged=true;this.speed*=1.45;this.damage*=1.35;this.setTint(0xffb347);}
     this.scene.physics.moveToObject(this, player, this.speed); this.setFlipX(this.body!.velocity.x < 0);
+    if (this.kind === 'thalnos') this.setAngle(Math.sin(time * 0.025) * 4);
     if (time < this.nextCastAt) return;
     if (this.kind === 'murlocShaman') {
       this.nextCastAt = time + SHAMAN_CAST_INTERVAL_MS;
